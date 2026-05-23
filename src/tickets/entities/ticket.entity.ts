@@ -42,6 +42,15 @@ export class Ticket {
   @Column('text', { nullable: true })
   razonamiento_ia: string;
 
+  @Column({ nullable: true })
+  created_by_user_id: string;
+
+  @Column({ nullable: true })
+  created_by_name: string;
+
+  @Column({ nullable: true })
+  org_id: string;
+
   @Column({
     type: 'enum',
     enum: TicketStatus,

@@ -55,6 +55,9 @@ export class Technician {
   })
   skills: Skill[];
 
+  @Column({ nullable: true })
+  org_id: string;
+
   @CreateDateColumn()
   created_at: Date;
 }

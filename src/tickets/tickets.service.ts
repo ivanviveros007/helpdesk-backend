@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { Ticket, TicketStatus } from './entities/ticket.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { AiDecisionDto } from './dto/ai-decision.dto';
@@ -24,15 +24,18 @@ export class TicketsService {
     private readonly gateway: TicketsGateway,
   ) {}
 
-  async create(dto: CreateTicketDto): Promise<{ ticket_id: string; status: string }> {
-    const ticket = this.repo.create({
+  async create(dto: CreateTicketDto, requester: { id: string; nombre: string; entity_type: string; org_id: string | null }): Promise<{ ticket_id: string; status: string }> {
+    const data: DeepPartial<Ticket> = {
       asunto: dto.asunto,
       descripcion_raw: dto.descripcion,
       estado: TicketStatus.PENDIENTE_IA,
-    });
+      created_by_user_id: requester.entity_type === 'user' ? requester.id : undefined,
+      created_by_name: requester.nombre,
+      org_id: requester.org_id ?? undefined,
+    };
+    const ticket = this.repo.create(data);
     const saved = await this.repo.save(ticket);
 
-    // Fire-and-forget: process asynchronously
     this.processWithAi(saved.id, dto.asunto, dto.descripcion).catch((err) =>
       this.logger.error(`AI processing failed for ticket ${saved.id}`, err),
     );
@@ -40,8 +43,29 @@ export class TicketsService {
     return { ticket_id: saved.id, status: saved.estado };
   }
 
-  async findAll(): Promise<Ticket[]> {
-    return this.repo.find({ order: { created_at: 'DESC' } });
+  async findAll(org_id?: string | null): Promise<Ticket[]> {
+    const where = org_id ? { org_id } : {};
+    return this.repo.find({ where, order: { created_at: 'DESC' } });
+  }
+
+  async findByUser(userId: string, org_id?: string | null): Promise<Ticket[]> {
+    return this.repo.find({
+      where: { created_by_user_id: userId, ...(org_id ? { org_id } : {}) },
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async findAllForAdmin(org_id?: string | null, filters?: { tecnico_id?: string; estado?: string; nivel?: string }): Promise<Ticket[]> {
+    const query = this.repo.createQueryBuilder('ticket')
+      .leftJoinAndSelect('ticket.tecnico_asignado', 'tech')
+      .orderBy('ticket.created_at', 'DESC');
+
+    if (org_id) query.andWhere('ticket.org_id = :org_id', { org_id });
+    if (filters?.tecnico_id) query.andWhere('tech.id = :tecnico_id', { tecnico_id: filters.tecnico_id });
+    if (filters?.estado) query.andWhere('ticket.estado = :estado', { estado: filters.estado });
+    if (filters?.nivel) query.andWhere('ticket.nivel_asignado = :nivel', { nivel: parseInt(filters.nivel) });
+
+    return query.getMany();
   }
 
   async findOne(id: string): Promise<Ticket> {
@@ -69,7 +93,6 @@ export class TicketsService {
     return saved;
   }
 
-  // Called by the AI service callback endpoint
   async applyAiDecision(decision: AiDecisionDto): Promise<Ticket> {
     const ticket = await this.findOne(decision.ticket_id);
 
@@ -96,22 +119,15 @@ export class TicketsService {
       assignedTechnicianId: saved.tecnico_asignado?.id ?? null,
       assignedTechnicianName: saved.tecnico_asignado?.nombre ?? null,
       reasoning: saved.razonamiento_ia,
+      createdByUserId: saved.created_by_user_id ?? null,
       updatedAt: saved.updated_at.toISOString(),
     });
 
     return saved;
   }
 
-  private async processWithAi(
-    ticketId: string,
-    asunto: string,
-    descripcion: string,
-  ): Promise<void> {
-    const decision = await this.aiClient.analyzeTicket({
-      ticket_id: ticketId,
-      asunto,
-      descripcion,
-    });
+  private async processWithAi(ticketId: string, asunto: string, descripcion: string): Promise<void> {
+    const decision = await this.aiClient.analyzeTicket({ ticket_id: ticketId, asunto, descripcion });
     await this.applyAiDecision(decision);
     this.logger.log(`Ticket ${ticketId} processed → level ${decision.suggested_level}, tech ${decision.assigned_tecnico_id}`);
   }

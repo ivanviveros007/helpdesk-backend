@@ -26,6 +26,9 @@ export class Level {
   @Column()
   max_complexity_score: number;
 
+  @Column({ nullable: true })
+  org_id: string;
+
   @CreateDateColumn()
   created_at: Date;
 }

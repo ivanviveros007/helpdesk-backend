@@ -8,12 +8,18 @@ import { LevelsModule } from './levels/levels.module';
 import { TechniciansModule } from './technicians/technicians.module';
 import { RoutingModule } from './routing/routing.module';
 import { AiClientModule } from './ai-client/ai-client.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { UsersModule } from './users/users.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
 import { Level } from './levels/entities/level.entity';
 import { Technician } from './technicians/entities/technician.entity';
 import { Skill } from './technicians/entities/skill.entity';
+import { Organization } from './organizations/entities/organization.entity';
+import { User } from './users/entities/user.entity';
+import { SuperAdmin } from './super-admin/entities/super-admin.entity';
 
 @Module({
   imports: [
@@ -26,7 +32,7 @@ import { Skill } from './technicians/entities/skill.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('database.url'),
-        entities: [Ticket, Level, Technician, Skill],
+        entities: [Ticket, Level, Technician, Skill, Organization, User, SuperAdmin],
         synchronize: config.get<string>('nodeEnv') !== 'production',
         logging: config.get<string>('nodeEnv') === 'development',
       }),
@@ -38,6 +44,9 @@ import { Skill } from './technicians/entities/skill.entity';
     TechniciansModule,
     RoutingModule,
     AiClientModule,
+    OrganizationsModule,
+    UsersModule,
+    SuperAdminModule,
   ],
 })
 export class AppModule {}

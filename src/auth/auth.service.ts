@@ -1,36 +1,60 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { TechniciansService } from '../technicians/technicians.service';
+import { UsersService } from '../users/users.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { LoginDto } from './dto/login.dto';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly techniciansService: TechniciansService,
+    private readonly usersService: UsersService,
+    private readonly orgsService: OrganizationsService,
     private readonly jwtService: JwtService,
   ) {}
 
   async login(dto: LoginDto) {
     const tech = await this.techniciansService.findByEmail(dto.email);
-    if (!tech) throw new UnauthorizedException('Invalid credentials');
+    if (tech) {
+      const valid = await bcrypt.compare(dto.password, tech.password_hash);
+      if (!valid) throw new UnauthorizedException('Invalid credentials');
+      if (!tech.estado_activo) throw new UnauthorizedException('Account is inactive');
 
-    const passwordValid = await bcrypt.compare(dto.password, tech.password_hash);
-    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+      const payload = { sub: tech.id, email: tech.email, role: tech.role, entity_type: 'technician', org_id: tech.org_id ?? null, nombre: tech.nombre };
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: { id: tech.id, nombre: tech.nombre, email: tech.email, role: tech.role, entity_type: 'technician', org_id: tech.org_id ?? null, nivel: tech.nivel },
+      };
+    }
 
-    if (!tech.estado_activo) throw new UnauthorizedException('Account is inactive');
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const payload = { sub: tech.id, email: tech.email, role: tech.role };
+    const valid = await bcrypt.compare(dto.password, user.password_hash);
+    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!user.estado_activo) throw new UnauthorizedException('Account is inactive');
 
+    const payload = { sub: user.id, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nombre: user.nombre };
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: tech.id,
-        nombre: tech.nombre,
-        email: tech.email,
-        role: tech.role,
-        nivel: tech.nivel,
-      },
+      user: { id: user.id, nombre: user.nombre, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nivel: null },
+    };
+  }
+
+  async register(dto: CreateUserDto) {
+    const existingTech = await this.techniciansService.findByEmail(dto.email);
+    if (existingTech) throw new ConflictException('Email already in use');
+
+    const defaultOrg = await this.orgsService.findBySlug('demo');
+    const user = await this.usersService.create(dto, defaultOrg?.id);
+
+    const payload = { sub: user.id, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nombre: user.nombre };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: { id: user.id, nombre: user.nombre, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nivel: null },
     };
   }
 }
