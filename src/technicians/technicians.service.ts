@@ -23,12 +23,15 @@ export class TechniciansService {
     private readonly levelRepo: Repository<Level>,
   ) {}
 
-  findAll(): Promise<Technician[]> {
-    return this.techRepo.find({ order: { nombre: 'ASC' } });
+  findAll(org_id?: string): Promise<Technician[]> {
+    return this.techRepo.find({
+      where: org_id ? { org_id } : {},
+      order: { nombre: 'ASC' },
+    });
   }
 
-  async findOne(id: string): Promise<Technician> {
-    const tech = await this.techRepo.findOneBy({ id });
+  async findOne(id: string, org_id?: string): Promise<Technician> {
+    const tech = await this.techRepo.findOneBy(org_id ? { id, org_id } : { id });
     if (!tech) throw new NotFoundException(`Technician ${id} not found`);
     return tech;
   }
@@ -37,7 +40,7 @@ export class TechniciansService {
     return this.techRepo.findOneBy({ email });
   }
 
-  async create(dto: CreateTechnicianDto): Promise<Technician> {
+  async create(dto: CreateTechnicianDto, org_id?: string): Promise<Technician> {
     const existing = await this.findByEmail(dto.email);
     if (existing) throw new ConflictException('Email already in use');
 
@@ -58,13 +61,14 @@ export class TechniciansService {
       nivel: nivel ?? undefined,
       estado_activo: dto.estado_activo ?? true,
       skills,
+      org_id: org_id ?? undefined,
     });
 
     return this.techRepo.save(tech);
   }
 
-  async update(id: string, dto: UpdateTechnicianDto): Promise<Technician> {
-    const tech = await this.findOne(id);
+  async update(id: string, dto: UpdateTechnicianDto, org_id?: string): Promise<Technician> {
+    const tech = await this.findOne(id, org_id);
 
     if (dto.password) {
       tech.password_hash = await bcrypt.hash(dto.password, 10);
@@ -84,8 +88,8 @@ export class TechniciansService {
     return this.techRepo.save(tech);
   }
 
-  async remove(id: string): Promise<void> {
-    const tech = await this.findOne(id);
+  async remove(id: string, org_id?: string): Promise<void> {
+    const tech = await this.findOne(id, org_id);
     await this.techRepo.remove(tech);
   }
 

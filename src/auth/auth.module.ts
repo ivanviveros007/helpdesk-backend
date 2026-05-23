@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { TechniciansModule } from '../technicians/technicians.module';
 import { UsersModule } from '../users/users.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { InvitationsModule } from '../invitations/invitations.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     TechniciansModule,
     UsersModule,
     OrganizationsModule,
+    InvitationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService): JwtModuleOptions => ({

@@ -12,29 +12,32 @@ export class LevelsService {
     private readonly repo: Repository<Level>,
   ) {}
 
-  findAll(): Promise<Level[]> {
-    return this.repo.find({ order: { numero_nivel: 'ASC' } });
+  findAll(org_id?: string): Promise<Level[]> {
+    return this.repo.find({
+      where: org_id ? { org_id } : {},
+      order: { numero_nivel: 'ASC' },
+    });
   }
 
-  async findOne(id: number): Promise<Level> {
-    const level = await this.repo.findOneBy({ id });
+  async findOne(id: number, org_id?: string): Promise<Level> {
+    const level = await this.repo.findOneBy(org_id ? { id, org_id } : { id });
     if (!level) throw new NotFoundException(`Level ${id} not found`);
     return level;
   }
 
-  create(dto: CreateLevelDto): Promise<Level> {
-    const level = this.repo.create(dto);
+  create(dto: CreateLevelDto, org_id?: string): Promise<Level> {
+    const level = this.repo.create({ ...dto, org_id });
     return this.repo.save(level);
   }
 
-  async update(id: number, dto: UpdateLevelDto): Promise<Level> {
-    const level = await this.findOne(id);
+  async update(id: number, dto: UpdateLevelDto, org_id?: string): Promise<Level> {
+    const level = await this.findOne(id, org_id);
     Object.assign(level, dto);
     return this.repo.save(level);
   }
 
-  async remove(id: number): Promise<void> {
-    const level = await this.findOne(id);
+  async remove(id: number, org_id?: string): Promise<void> {
+    const level = await this.findOne(id, org_id);
     await this.repo.remove(level);
   }
 }

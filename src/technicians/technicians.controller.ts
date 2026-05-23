@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { TechniciansService } from './technicians.service';
@@ -23,30 +24,31 @@ export class TechniciansController {
   constructor(private readonly service: TechniciansService) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@Request() req: any) {
+    return this.service.findAll(req.user.org_id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.service.findOne(id, req.user.org_id);
   }
 
   @Post()
-  create(@Body() dto: CreateTechnicianDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateTechnicianDto, @Request() req: any) {
+    return this.service.create(dto, req.user.org_id);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTechnicianDto,
+    @Request() req: any,
   ) {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, req.user.org_id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.service.remove(id, req.user.org_id);
   }
 }

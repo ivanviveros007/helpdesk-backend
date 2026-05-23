@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { TechniciansService } from '../technicians/technicians.service';
 import { UsersService } from '../users/users.service';
 import { OrganizationsService } from '../organizations/organizations.service';
+import { InvitationsService } from '../invitations/invitations.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 
@@ -13,6 +14,7 @@ export class AuthService {
     private readonly techniciansService: TechniciansService,
     private readonly usersService: UsersService,
     private readonly orgsService: OrganizationsService,
+    private readonly invitationsService: InvitationsService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -48,13 +50,27 @@ export class AuthService {
     const existingTech = await this.techniciansService.findByEmail(dto.email);
     if (existingTech) throw new ConflictException('Email already in use');
 
-    const defaultOrg = await this.orgsService.findBySlug('demo');
-    const user = await this.usersService.create(dto, defaultOrg?.id);
+    let org_id: string | undefined;
+
+    if (dto.invite_token) {
+      const invite = await this.invitationsService.validate(dto.invite_token);
+      org_id = invite.org_id;
+      await this.invitationsService.markUsed(dto.invite_token);
+    } else {
+      const defaultOrg = await this.orgsService.findBySlug('demo');
+      org_id = defaultOrg?.id;
+    }
+
+    const user = await this.usersService.create(dto, org_id);
 
     const payload = { sub: user.id, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nombre: user.nombre };
     return {
       access_token: this.jwtService.sign(payload),
       user: { id: user.id, nombre: user.nombre, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nivel: null },
     };
+  }
+
+  validateInvite(token: string) {
+    return this.invitationsService.validate(token);
   }
 }
