@@ -61,4 +61,11 @@ export class InvitationsService {
       order: { created_at: 'DESC' },
     });
   }
+
+  async resend(id: string, org_id: string): Promise<Invitation> {
+    const old = await this.repo.findOneBy({ id, org_id });
+    if (!old) throw new NotFoundException('Invitación no encontrada');
+    await this.repo.update({ id }, { used: true });
+    return this.create({ email: old.email }, org_id);
+  }
 }

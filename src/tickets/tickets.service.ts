@@ -162,6 +162,54 @@ export class TicketsService {
     return saved;
   }
 
+  async getMetrics(org_id: string) {
+    const byStatus = await this.repo
+      .createQueryBuilder('ticket')
+      .select('ticket.estado', 'estado')
+      .addSelect('COUNT(*)', 'count')
+      .where('ticket.org_id = :org_id', { org_id })
+      .groupBy('ticket.estado')
+      .getRawMany();
+
+    const ticketsEsteMes = await this.repo
+      .createQueryBuilder('ticket')
+      .where('ticket.org_id = :org_id', { org_id })
+      .andWhere("DATE_TRUNC('month', ticket.created_at) = DATE_TRUNC('month', NOW())")
+      .getCount();
+
+    const avgRes = await this.repo
+      .createQueryBuilder('ticket')
+      .select("AVG(EXTRACT(EPOCH FROM (ticket.updated_at - ticket.created_at)) / 3600)", 'avg_hours')
+      .where('ticket.org_id = :org_id', { org_id })
+      .andWhere('ticket.estado = :estado', { estado: TicketStatus.RESUELTO })
+      .getRawOne();
+
+    const byTech = await this.repo
+      .createQueryBuilder('ticket')
+      .leftJoin('ticket.tecnico_asignado', 'tech')
+      .select('tech.nombre', 'nombre')
+      .addSelect('tech.carga_actual', 'carga_actual')
+      .addSelect('COUNT(*)', 'total')
+      .where('ticket.org_id = :org_id', { org_id })
+      .andWhere('tech.id IS NOT NULL')
+      .groupBy('tech.id')
+      .addGroupBy('tech.nombre')
+      .addGroupBy('tech.carga_actual')
+      .orderBy('COUNT(*)', 'DESC')
+      .getRawMany();
+
+    return {
+      by_status: byStatus.map((r) => ({ estado: r.estado, count: parseInt(r.count) })),
+      tickets_este_mes: ticketsEsteMes,
+      avg_resolution_hours: avgRes?.avg_hours ? parseFloat(parseFloat(avgRes.avg_hours).toFixed(1)) : null,
+      by_technician: byTech.map((t) => ({
+        nombre: t.nombre,
+        carga_actual: t.carga_actual ?? 0,
+        total_asignados: parseInt(t.total),
+      })),
+    };
+  }
+
   private async processWithAi(ticketId: string, asunto: string, descripcion: string, orgId?: string | null): Promise<void> {
     const decision = await this.aiClient.analyzeTicket({ ticket_id: ticketId, asunto, descripcion, org_id: orgId });
     await this.applyAiDecision(decision);

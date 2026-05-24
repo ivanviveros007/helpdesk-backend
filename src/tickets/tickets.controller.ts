@@ -34,6 +34,13 @@ export class TicketsController {
     return this.service.findByUser(req.user.id, req.user.org_id);
   }
 
+  @Get('admin/metrics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getMetrics(@Request() req) {
+    return this.service.getMetrics(req.user.org_id);
+  }
+
   // Admin: all tickets with optional filters
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)

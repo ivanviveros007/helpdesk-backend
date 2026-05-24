@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseUUIDPipe,
   Post,
   Request,
   UseGuards,
@@ -26,5 +28,10 @@ export class InvitationsController {
   @Get()
   findAll(@Request() req: any) {
     return this.service.findByOrg(req.user.org_id);
+  }
+
+  @Post(':id/resend')
+  resend(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.service.resend(id, req.user.org_id);
   }
 }
