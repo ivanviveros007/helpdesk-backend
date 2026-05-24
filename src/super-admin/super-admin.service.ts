@@ -57,7 +57,13 @@ export class SuperAdminService {
     if (existing) throw new ConflictException(`Slug '${dto.slug}' already in use`);
 
     const org = await this.orgRepo.save(
-      this.orgRepo.create({ nombre: dto.nombre, slug: dto.slug, plan: dto.plan ?? 'trial' }),
+      this.orgRepo.create({
+        nombre: dto.nombre,
+        slug: dto.slug,
+        plan: dto.plan ?? 'trial',
+        company_type: dto.company_type,
+        ai_custom_instructions: dto.ai_custom_instructions,
+      }),
     );
 
     // Create initial admin for this org
@@ -73,6 +79,14 @@ export class SuperAdminService {
     await this.techRepo.save(admin);
 
     return this.attachOrgStats(org);
+  }
+
+  async updateAiConfig(id: string, data: { company_type?: string; ai_custom_instructions?: string }) {
+    const org = await this.orgRepo.findOneBy({ id });
+    if (!org) throw new NotFoundException(`Organization ${id} not found`);
+    Object.assign(org, data);
+    await this.orgRepo.save(org);
+    return { id: org.id, company_type: org.company_type, ai_custom_instructions: org.ai_custom_instructions };
   }
 
   async updateOrg(id: string, data: { nombre?: string; plan?: string; estado_activo?: boolean }) {

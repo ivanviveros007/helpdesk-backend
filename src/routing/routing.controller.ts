@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { RoutingService } from './routing.service';
 import { InternalSecretGuard } from '../common/guards/internal-secret.guard';
 
@@ -8,7 +8,7 @@ export class RoutingController {
 
   @Get('routing-context')
   @UseGuards(InternalSecretGuard)
-  getRoutingContext() {
-    return this.service.getRoutingContext();
+  getRoutingContext(@Query('org_id') orgId?: string) {
+    return this.service.getRoutingContext(orgId);
   }
 }

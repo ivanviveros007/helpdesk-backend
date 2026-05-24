@@ -17,6 +17,12 @@ export class Organization {
   @Column({ default: true })
   estado_activo: boolean;
 
+  @Column({ nullable: true })
+  company_type: string; // 'tech_saas' | 'ecommerce' | 'healthcare' | 'retail' | 'it_services' | 'other'
+
+  @Column('text', { nullable: true })
+  ai_custom_instructions: string;
+
   @CreateDateColumn()
   created_at: Date;
 }

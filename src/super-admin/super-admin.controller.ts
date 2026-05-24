@@ -40,6 +40,15 @@ export class SuperAdminController {
     return this.service.updateOrg(id, body);
   }
 
+  @Patch('organizations/:id/ai-config')
+  @UseGuards(SuperAdminGuard)
+  updateAiConfig(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { company_type?: string; ai_custom_instructions?: string },
+  ) {
+    return this.service.updateAiConfig(id, body);
+  }
+
   @Post('organizations/:id/admin')
   @UseGuards(SuperAdminGuard)
   createOrgAdmin(

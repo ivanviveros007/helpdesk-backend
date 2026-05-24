@@ -11,6 +11,14 @@ export class CreateOrgDto {
   @IsOptional()
   plan?: string;
 
+  @IsString()
+  @IsOptional()
+  company_type?: string;
+
+  @IsString()
+  @IsOptional()
+  ai_custom_instructions?: string;
+
   // Admin inicial de la org
   @IsString()
   admin_nombre: string;

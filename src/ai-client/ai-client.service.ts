@@ -8,6 +8,7 @@ interface AnalyzeTicketPayload {
   ticket_id: string;
   asunto: string;
   descripcion: string;
+  org_id?: string | null;
 }
 
 @Injectable()
@@ -21,7 +22,7 @@ export class AiClientService {
 
   async analyzeTicket(payload: AnalyzeTicketPayload): Promise<AiDecisionDto> {
     const url = `${this.config.get<string>('aiService.url')}/v1/analyze-ticket`;
-    this.logger.log(`Sending ticket ${payload.ticket_id} to AI service`);
+    this.logger.log(`Sending ticket ${payload.ticket_id} to AI service (org: ${payload.org_id ?? 'none'})`);
 
     const { data } = await firstValueFrom(
       this.http.post<AiDecisionDto>(url, payload),

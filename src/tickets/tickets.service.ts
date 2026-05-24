@@ -40,7 +40,7 @@ export class TicketsService {
     const ticket = this.repo.create(data);
     const saved = await this.repo.save(ticket);
 
-    this.processWithAi(saved.id, dto.asunto, dto.descripcion).catch((err) =>
+    this.processWithAi(saved.id, dto.asunto, dto.descripcion, saved.org_id).catch((err) =>
       this.logger.error(`AI processing failed for ticket ${saved.id}`, err),
     );
 
@@ -162,8 +162,8 @@ export class TicketsService {
     return saved;
   }
 
-  private async processWithAi(ticketId: string, asunto: string, descripcion: string): Promise<void> {
-    const decision = await this.aiClient.analyzeTicket({ ticket_id: ticketId, asunto, descripcion });
+  private async processWithAi(ticketId: string, asunto: string, descripcion: string, orgId?: string | null): Promise<void> {
+    const decision = await this.aiClient.analyzeTicket({ ticket_id: ticketId, asunto, descripcion, org_id: orgId });
     await this.applyAiDecision(decision);
     this.logger.log(`Ticket ${ticketId} processed → level ${decision.suggested_level}, tech ${decision.assigned_tecnico_id}`);
   }
