@@ -11,6 +11,8 @@ import { AiDecisionDto } from './dto/ai-decision.dto';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { TicketsGateway } from './tickets.gateway';
+import { EmailService } from '../email/email.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class TicketsService {
@@ -22,6 +24,8 @@ export class TicketsService {
     private readonly aiClient: AiClientService,
     private readonly techniciansService: TechniciansService,
     private readonly gateway: TicketsGateway,
+    private readonly emailService: EmailService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(dto: CreateTicketDto, requester: { id: string; nombre: string; entity_type: string; org_id: string | null }): Promise<{ ticket_id: string; status: string }> {
@@ -90,6 +94,18 @@ export class TicketsService {
       await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
     }
 
+    // Email al usuario que creó el ticket
+    if (saved.created_by_user_id) {
+      this.usersService.findById(saved.created_by_user_id).then((user) => {
+        if (user) {
+          this.emailService.sendTicketResolved({
+            user: { nombre: user.nombre, email: user.email },
+            ticket: { id: saved.id, asunto: saved.asunto },
+          });
+        }
+      }).catch((err) => this.logger.error(`Could not send resolution email for ticket ${id}`, err));
+    }
+
     return saved;
   }
 
@@ -122,6 +138,26 @@ export class TicketsService {
       createdByUserId: saved.created_by_user_id ?? null,
       updatedAt: saved.updated_at.toISOString(),
     });
+
+    // Email al técnico asignado
+    if (saved.tecnico_asignado?.email) {
+      this.emailService.sendTicketAssigned({
+        tech: {
+          nombre: saved.tecnico_asignado.nombre,
+          email: saved.tecnico_asignado.email,
+        },
+        ticket: {
+          id: saved.id,
+          asunto: saved.asunto,
+          descripcion_raw: saved.descripcion_raw,
+          categoria: saved.categoria ?? null,
+          prioridad: saved.prioridad ?? null,
+          nivel_asignado: saved.nivel_asignado ?? null,
+          razonamiento_ia: saved.razonamiento_ia ?? null,
+          created_by_name: saved.created_by_name ?? null,
+        },
+      });
+    }
 
     return saved;
   }

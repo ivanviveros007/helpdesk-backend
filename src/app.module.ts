@@ -12,6 +12,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { UsersModule } from './users/users.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { EmailModule } from './email/email.module';
 
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
@@ -50,6 +51,7 @@ import { Invitation } from './invitations/entities/invitation.entity';
     UsersModule,
     SuperAdminModule,
     InvitationsModule,
+    EmailModule,
   ],
 })
 export class AppModule {}

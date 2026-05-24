@@ -6,12 +6,16 @@ import { TicketsController } from './tickets.controller';
 import { TicketsGateway } from './tickets.gateway';
 import { AiClientModule } from '../ai-client/ai-client.module';
 import { TechniciansModule } from '../technicians/technicians.module';
+import { EmailModule } from '../email/email.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Ticket]),
     AiClientModule,
     TechniciansModule,
+    EmailModule,
+    UsersModule,
   ],
   providers: [TicketsService, TicketsGateway],
   controllers: [TicketsController],
