@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,19 +10,26 @@ import { randomUUID } from 'crypto';
 import { Invitation } from './entities/invitation.entity';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { Organization } from '../organizations/entities/organization.entity';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class InvitationsService {
+  private readonly logger = new Logger(InvitationsService.name);
+
   constructor(
     @InjectRepository(Invitation)
     private readonly repo: Repository<Invitation>,
     @InjectRepository(Organization)
     private readonly orgRepo: Repository<Organization>,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(dto: CreateInvitationDto, org_id: string): Promise<Invitation> {
+    this.logger.log(`Creating invitation for ${dto.email} in org ${org_id}`);
+
     const org = await this.orgRepo.findOneBy({ id: org_id });
     if (!org) throw new NotFoundException('Organization not found');
+    this.logger.log(`Org found: ${org.nombre} (${org.id})`);
 
     const expires_at = new Date();
     expires_at.setDate(expires_at.getDate() + 7);
@@ -35,7 +43,18 @@ export class InvitationsService {
       expires_at,
     });
 
-    return this.repo.save(invitation);
+    const saved = await this.repo.save(invitation);
+    this.logger.log(`Invitation saved with token ${saved.token}`);
+
+    this.logger.log(`Calling emailService.sendInvitation for ${dto.email}`);
+    await this.emailService.sendInvitation({
+      email: dto.email,
+      org_nombre: org.nombre,
+      token: saved.token,
+    });
+    this.logger.log(`sendInvitation call completed for ${dto.email}`);
+
+    return saved;
   }
 
   async validate(token: string): Promise<{ email: string; org_nombre: string; org_id: string }> {
@@ -67,5 +86,11 @@ export class InvitationsService {
     if (!old) throw new NotFoundException('Invitación no encontrada');
     await this.repo.update({ id }, { used: true });
     return this.create({ email: old.email }, org_id);
+  }
+
+  async delete(id: string, org_id: string): Promise<void> {
+    const inv = await this.repo.findOneBy({ id, org_id });
+    if (!inv) throw new NotFoundException('Invitación no encontrada');
+    await this.repo.delete({ id });
   }
 }

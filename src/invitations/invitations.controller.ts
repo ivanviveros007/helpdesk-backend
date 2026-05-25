@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -33,5 +35,11 @@ export class InvitationsController {
   @Post(':id/resend')
   resend(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
     return this.service.resend(id, req.user.org_id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  delete(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.service.delete(id, req.user.org_id);
   }
 }

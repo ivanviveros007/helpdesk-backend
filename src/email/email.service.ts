@@ -13,6 +13,30 @@ export class EmailService {
     this.frontendUrl = this.config.get<string>('frontend.url') ?? 'http://localhost:3000';
   }
 
+  async sendInvitation(params: {
+    email: string;
+    org_nombre: string;
+    token: string;
+  }): Promise<void> {
+    const { email, org_nombre, token } = params;
+    const link = `${this.frontendUrl}/register?token=${token}`;
+    const apiKey = this.config.get<string>('resend.apiKey');
+    this.logger.log(`[sendInvitation] to=${email} link=${link}`);
+    this.logger.log(`[sendInvitation] RESEND_API_KEY present=${!!apiKey} length=${apiKey?.length ?? 0}`);
+    try {
+      const result = await this.resend.emails.send({
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
+        to: email,
+        subject: `You've been invited to ${org_nombre} on HelpDesk AI`,
+        html: this.buildInvitationHtml(email, org_nombre, link),
+      });
+      this.logger.log(`[sendInvitation] Resend response: ${JSON.stringify(result)}`);
+    } catch (err) {
+      this.logger.error(`[sendInvitation] FAILED for ${email}: ${JSON.stringify(err)}`);
+      this.logger.error(err);
+    }
+  }
+
   async sendTicketAssigned(params: {
     tech: { nombre: string; email: string };
     ticket: {
@@ -29,7 +53,7 @@ export class EmailService {
     const { tech, ticket } = params;
     try {
       await this.resend.emails.send({
-        from: 'HelpDesk AI <onboarding@resend.dev>',
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
         to: tech.email,
         subject: `🎫 New ticket assigned to you: ${ticket.asunto}`,
         html: this.buildAssignedHtml(tech, ticket),
@@ -47,7 +71,7 @@ export class EmailService {
     const { user, ticket } = params;
     try {
       await this.resend.emails.send({
-        from: 'HelpDesk AI <onboarding@resend.dev>',
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
         to: user.email,
         subject: `✅ Your ticket has been resolved: ${ticket.asunto}`,
         html: this.buildResolvedHtml(user, ticket),
@@ -56,6 +80,41 @@ export class EmailService {
     } catch (err) {
       this.logger.error(`Failed to send resolution email to ${user.email}`, err);
     }
+  }
+
+  private buildInvitationHtml(email: string, org_nombre: string, link: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+        <tr>
+          <td style="background:#4f46e5;padding:24px 32px">
+            <p style="margin:0;color:#c7d2fe;font-size:13px;font-weight:500">HelpDesk AI</p>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700">You've been invited</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <p style="margin:0 0 16px;color:#374151;font-size:15px">You've been invited to join <strong>${esc(org_nombre)}</strong> on HelpDesk AI.</p>
+            <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6">Click the button below to create your account. This link expires in 7 days.</p>
+            <a href="${link}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">Accept Invitation →</a>
+            <p style="margin:24px 0 0;font-size:12px;color:#9ca3af">Or copy this link: ${link}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:16px 32px;text-align:center">
+            <p style="margin:0;font-size:12px;color:#9ca3af">HelpDesk AI · This invitation was sent to ${esc(email)}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
   }
 
   private buildAssignedHtml(
