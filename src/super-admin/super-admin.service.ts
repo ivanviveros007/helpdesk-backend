@@ -189,6 +189,24 @@ export class SuperAdminService {
     await this.userRepo.delete(memberId);
   }
 
+  async updateTechnician(orgId: string, memberId: string, data: { nombre?: string; email?: string; password?: string }) {
+    const tech = await this.techRepo.findOneBy({ id: memberId, org_id: orgId });
+    if (!tech) throw new NotFoundException('Technician not found');
+
+    if (data.email && data.email !== tech.email) {
+      const conflict = await this.techRepo.findOneBy({ email: data.email });
+      if (conflict) throw new ConflictException('Email already in use');
+    }
+
+    const update: Partial<typeof tech> = {};
+    if (data.nombre) update.nombre = data.nombre;
+    if (data.email) update.email = data.email;
+    if (data.password) update.password_hash = await bcrypt.hash(data.password, 10);
+
+    await this.techRepo.update(memberId, update);
+    return { id: memberId, ...update };
+  }
+
   async getLogs() {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 

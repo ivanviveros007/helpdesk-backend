@@ -84,6 +84,16 @@ export class SuperAdminController {
     return this.service.deleteMember(memberId, id);
   }
 
+  @Patch('organizations/:id/members/technicians/:memberId')
+  @UseGuards(SuperAdminGuard)
+  updateTechnician(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @Body() body: { nombre?: string; email?: string; password?: string },
+  ) {
+    return this.service.updateTechnician(id, memberId, body);
+  }
+
   @Get('metrics')
   @UseGuards(SuperAdminGuard)
   getMetrics() {
