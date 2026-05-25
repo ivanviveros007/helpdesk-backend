@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
@@ -11,7 +11,7 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   invite_token?: string;
 }
