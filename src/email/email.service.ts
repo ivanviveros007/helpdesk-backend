@@ -19,7 +19,7 @@ export class EmailService {
     token: string;
   }): Promise<void> {
     const { email, org_nombre, token } = params;
-    const link = `${this.frontendUrl}/register?token=${token}`;
+    const link = `${this.frontendUrl}/register?invite=${token}`;
     const apiKey = this.config.get<string>('resend.apiKey');
     this.logger.log(`[sendInvitation] to=${email} link=${link}`);
     this.logger.log(`[sendInvitation] RESEND_API_KEY present=${!!apiKey} length=${apiKey?.length ?? 0}`);

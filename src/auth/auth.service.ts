@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { TechniciansService } from '../technicians/technicians.service';
@@ -54,6 +54,7 @@ export class AuthService {
 
     if (dto.invite_token) {
       const invite = await this.invitationsService.validate(dto.invite_token);
+      if (invite.email !== dto.email) throw new BadRequestException('El email no coincide con la invitación');
       org_id = invite.org_id;
       await this.invitationsService.markUsed(dto.invite_token);
     } else {
