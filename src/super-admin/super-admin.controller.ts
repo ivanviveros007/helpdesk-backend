@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { SuperAdminService } from './super-admin.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { LoginSuperAdminDto } from './dto/login-super-admin.dto';
@@ -56,6 +56,32 @@ export class SuperAdminController {
     @Body() body: { nombre: string; email: string; password: string },
   ) {
     return this.service.createOrgAdmin(id, body);
+  }
+
+  @Get('organizations/:id/members')
+  @UseGuards(SuperAdminGuard)
+  getOrgMembers(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getOrgMembers(id);
+  }
+
+  @Patch('organizations/:id/members/:type/:memberId/toggle-status')
+  @UseGuards(SuperAdminGuard)
+  toggleMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('type') type: 'technician' | 'user',
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ) {
+    return this.service.toggleMemberStatus(type, memberId, id);
+  }
+
+  @Delete('organizations/:id/members/users/:memberId')
+  @UseGuards(SuperAdminGuard)
+  @HttpCode(204)
+  deleteMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ) {
+    return this.service.deleteMember(memberId, id);
   }
 
   @Get('metrics')

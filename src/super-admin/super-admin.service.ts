@@ -152,6 +152,43 @@ export class SuperAdminService {
     };
   }
 
+  async getOrgMembers(orgId: string) {
+    const [technicians, users] = await Promise.all([
+      this.techRepo.find({ where: { org_id: orgId }, order: { created_at: 'ASC' } }),
+      this.userRepo.find({ where: { org_id: orgId }, order: { created_at: 'ASC' } }),
+    ]);
+    return {
+      technicians: technicians.map((t) => ({
+        id: t.id, nombre: t.nombre, email: t.email,
+        role: t.role, estado_activo: t.estado_activo, created_at: t.created_at,
+      })),
+      users: users.map((u) => ({
+        id: u.id, nombre: u.nombre, email: u.email,
+        role: 'user', estado_activo: u.estado_activo, created_at: u.created_at,
+      })),
+    };
+  }
+
+  async toggleMemberStatus(type: 'technician' | 'user', memberId: string, orgId: string) {
+    if (type === 'technician') {
+      const tech = await this.techRepo.findOneBy({ id: memberId, org_id: orgId });
+      if (!tech) throw new NotFoundException('Technician not found');
+      await this.techRepo.update(memberId, { estado_activo: !tech.estado_activo });
+      return { estado_activo: !tech.estado_activo };
+    } else {
+      const user = await this.userRepo.findOneBy({ id: memberId, org_id: orgId });
+      if (!user) throw new NotFoundException('User not found');
+      await this.userRepo.update(memberId, { estado_activo: !user.estado_activo });
+      return { estado_activo: !user.estado_activo };
+    }
+  }
+
+  async deleteMember(memberId: string, orgId: string) {
+    const user = await this.userRepo.findOneBy({ id: memberId, org_id: orgId });
+    if (!user) throw new NotFoundException('User not found');
+    await this.userRepo.delete(memberId);
+  }
+
   async getLogs() {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
