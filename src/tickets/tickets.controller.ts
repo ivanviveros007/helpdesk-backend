@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -76,5 +78,20 @@ export class TicketsController {
   @UseGuards(JwtAuthGuard)
   markResolved(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.markResolved(id);
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('user')
+  cancelTicket(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.service.cancelTicket(id, req.user.id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('user')
+  @HttpCode(204)
+  deleteTicket(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.service.deleteTicket(id, req.user.id);
   }
 }

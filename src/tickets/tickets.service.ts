@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -107,6 +109,31 @@ export class TicketsService {
     }
 
     return saved;
+  }
+
+  async cancelTicket(id: string, userId: string): Promise<Ticket> {
+    const ticket = await this.findOne(id);
+    if (ticket.created_by_user_id !== userId) throw new ForbiddenException('No podés cancelar este ticket');
+    if (ticket.estado === TicketStatus.RESUELTO) throw new BadRequestException('No podés cancelar un ticket ya resuelto');
+    if (ticket.estado === TicketStatus.CANCELADO) throw new BadRequestException('El ticket ya está cancelado');
+
+    if (ticket.tecnico_asignado?.id) {
+      await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
+    }
+
+    ticket.estado = TicketStatus.CANCELADO;
+    return this.repo.save(ticket);
+  }
+
+  async deleteTicket(id: string, userId: string): Promise<void> {
+    const ticket = await this.findOne(id);
+    if (ticket.created_by_user_id !== userId) throw new ForbiddenException('No podés eliminar este ticket');
+
+    if (ticket.tecnico_asignado?.id && ticket.estado === TicketStatus.ASIGNADO) {
+      await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
+    }
+
+    await this.repo.delete(id);
   }
 
   async applyAiDecision(decision: AiDecisionDto): Promise<Ticket> {

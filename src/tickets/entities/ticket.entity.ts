@@ -13,6 +13,7 @@ export enum TicketStatus {
   PENDIENTE_IA = 'PENDIENTE_IA',
   ASIGNADO = 'ASIGNADO',
   RESUELTO = 'RESUELTO',
+  CANCELADO = 'CANCELADO',
 }
 
 @Entity('tickets')
