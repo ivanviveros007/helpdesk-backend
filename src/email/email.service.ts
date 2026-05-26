@@ -64,6 +64,50 @@ export class EmailService {
     }
   }
 
+  async sendTicketAssignedToUser(params: {
+    user: { nombre: string; email: string };
+    ticket: { id: string; asunto: string; prioridad: number | null; nivel_asignado: number | null };
+    tech: { nombre: string };
+  }): Promise<void> {
+    const { user, ticket, tech } = params;
+    try {
+      await this.resend.emails.send({
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
+        to: user.email,
+        subject: `🎫 Tu ticket fue asignado: ${ticket.asunto}`,
+        html: this.buildAssignedToUserHtml(user, ticket, tech),
+      });
+      this.logger.log(`User assignment email sent to ${user.email} for ticket ${ticket.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send user assignment email to ${user.email}`, err);
+    }
+  }
+
+  async sendInactivityAlert(params: {
+    to: { nombre: string; email: string };
+    ticket: { id: string; asunto: string };
+    type: 'user_pending' | 'admin_not_started';
+  }): Promise<void> {
+    const { to, ticket, type } = params;
+    const subject = type === 'user_pending'
+      ? `⏰ Tu ticket espera tu respuesta: ${ticket.asunto}`
+      : `⚠️ Ticket sin iniciar hace 48hs: ${ticket.asunto}`;
+    const body = type === 'user_pending'
+      ? `Hola <strong>${esc(to.nombre)}</strong>,<br><br>Uno de tus tickets lleva más de 48 horas esperando tu respuesta.<br><br><strong>${esc(ticket.asunto)}</strong>`
+      : `Hola <strong>${esc(to.nombre)}</strong>,<br><br>El ticket <strong>${esc(ticket.asunto)}</strong> fue asignado hace más de 48 horas y aún no fue iniciado.`;
+    try {
+      await this.resend.emails.send({
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
+        to: to.email,
+        subject,
+        html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px">${body}<br><br><a href="${this.frontendUrl}" style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px">Ver ticket →</a></body></html>`,
+      });
+      this.logger.log(`Inactivity alert (${type}) sent to ${to.email} for ticket ${ticket.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send inactivity alert to ${to.email}`, err);
+    }
+  }
+
   async sendTicketResolved(params: {
     user: { nombre: string; email: string };
     ticket: { id: string; asunto: string };
@@ -173,6 +217,53 @@ export class EmailService {
         <tr>
           <td style="border-top:1px solid #f3f4f6;padding:16px 32px;text-align:center">
             <p style="margin:0;font-size:12px;color:#9ca3af">HelpDesk AI · You received this because you are an assigned technician</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  private buildAssignedToUserHtml(
+    user: { nombre: string },
+    ticket: { asunto: string; prioridad: number | null; nivel_asignado: number | null },
+    tech: { nombre: string },
+  ): string {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+        <tr>
+          <td style="background:#4f46e5;padding:24px 32px">
+            <p style="margin:0;color:#c7d2fe;font-size:13px;font-weight:500">HelpDesk AI</p>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700">🎫 Ticket Assigned</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <p style="margin:0 0 16px;color:#374151;font-size:15px">Hola <strong>${esc(user.nombre)}</strong>,</p>
+            <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6">Tu ticket fue asignado a un técnico y está siendo atendido:</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;margin-bottom:24px">
+              <tr><td style="padding:20px">
+                <p style="margin:0;font-size:16px;font-weight:700;color:#111827">${esc(ticket.asunto)}</p>
+                <p style="margin:12px 0 0;font-size:13px;color:#6b7280">Técnico asignado: <strong style="color:#4f46e5">${esc(tech.nombre)}</strong></p>
+                ${ticket.nivel_asignado ? `<p style="margin:6px 0 0;font-size:13px;color:#6b7280">Nivel: <strong>${ticket.nivel_asignado}</strong></p>` : ''}
+                ${ticket.prioridad ? `<p style="margin:6px 0 0;font-size:13px;color:#6b7280">Prioridad: <strong>${ticket.prioridad}/10</strong></p>` : ''}
+              </td></tr>
+            </table>
+            <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6">Podés hacer seguimiento de tu ticket en el portal.</p>
+            <a href="${this.frontendUrl}/client/my-tickets" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">Ver mis tickets →</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:16px 32px;text-align:center">
+            <p style="margin:0;font-size:12px;color:#9ca3af">HelpDesk AI · Recibiste este email porque creaste un ticket de soporte</p>
           </td>
         </tr>
       </table>

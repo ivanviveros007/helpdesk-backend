@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
@@ -16,6 +17,7 @@ import { EmailModule } from './email/email.module';
 
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
+import { TicketAttachment } from './tickets/entities/ticket-attachment.entity';
 import { Level } from './levels/entities/level.entity';
 import { Technician } from './technicians/entities/technician.entity';
 import { Skill } from './technicians/entities/skill.entity';
@@ -35,12 +37,13 @@ import { Invitation } from './invitations/entities/invitation.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('database.url'),
-        entities: [Ticket, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation],
+        entities: [Ticket, TicketAttachment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation],
         synchronize: config.get<string>('nodeEnv') !== 'production',
         logging: config.get<string>('nodeEnv') === 'development',
       }),
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     TicketsModule,
     LevelsModule,

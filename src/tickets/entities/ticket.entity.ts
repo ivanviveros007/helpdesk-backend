@@ -4,14 +4,18 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Technician } from '../../technicians/entities/technician.entity';
+import { TicketAttachment } from './ticket-attachment.entity';
 
 export enum TicketStatus {
   PENDIENTE_IA = 'PENDIENTE_IA',
   ASIGNADO = 'ASIGNADO',
+  EN_PROGRESO = 'EN_PROGRESO',
+  ESPERANDO_USUARIO = 'ESPERANDO_USUARIO',
   RESUELTO = 'RESUELTO',
   CANCELADO = 'CANCELADO',
 }
@@ -58,6 +62,12 @@ export class Ticket {
     default: TicketStatus.PENDIENTE_IA,
   })
   estado: TicketStatus;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_activity_at: Date | null;
+
+  @OneToMany(() => TicketAttachment, (a) => a.ticket, { eager: true, cascade: true })
+  attachments: TicketAttachment[];
 
   @CreateDateColumn()
   created_at: Date;

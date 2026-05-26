@@ -8,13 +8,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Ticket, TicketStatus } from './entities/ticket.entity';
+import { TicketAttachment } from './entities/ticket-attachment.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { AiDecisionDto } from './dto/ai-decision.dto';
+import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { TicketsGateway } from './tickets.gateway';
 import { EmailService } from '../email/email.service';
 import { UsersService } from '../users/users.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 @Injectable()
 export class TicketsService {
@@ -23,11 +26,14 @@ export class TicketsService {
   constructor(
     @InjectRepository(Ticket)
     private readonly repo: Repository<Ticket>,
+    @InjectRepository(TicketAttachment)
+    private readonly attachmentRepo: Repository<TicketAttachment>,
     private readonly aiClient: AiClientService,
     private readonly techniciansService: TechniciansService,
     private readonly gateway: TicketsGateway,
     private readonly emailService: EmailService,
     private readonly usersService: UsersService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async create(dto: CreateTicketDto, requester: { id: string; nombre: string; entity_type: string; org_id: string | null }): Promise<{ ticket_id: string; status: string }> {
@@ -133,7 +139,83 @@ export class TicketsService {
       await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
     }
 
+    // Delete files from R2
+    for (const att of ticket.attachments ?? []) {
+      await this.uploadsService.deleteFile(att.key).catch(() => null);
+    }
+
     await this.repo.delete(id);
+  }
+
+  async updateStatus(id: string, dto: UpdateTicketStatusDto, technicianId: string): Promise<Ticket> {
+    const ticket = await this.findOne(id);
+
+    if (!ticket.tecnico_asignado || ticket.tecnico_asignado.id !== technicianId) {
+      throw new ForbiddenException('Solo el técnico asignado puede cambiar el estado');
+    }
+
+    const terminal = [TicketStatus.RESUELTO, TicketStatus.CANCELADO];
+    if (terminal.includes(ticket.estado)) {
+      throw new BadRequestException('El ticket ya está cerrado');
+    }
+
+    const wasOpen = ticket.tecnico_asignado?.id && ticket.estado !== TicketStatus.RESUELTO;
+    ticket.estado = dto.estado;
+    ticket.last_activity_at = new Date();
+
+    if (dto.estado === TicketStatus.RESUELTO && wasOpen) {
+      await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
+    }
+
+    const saved = await this.repo.save(ticket);
+
+    if (dto.estado === TicketStatus.RESUELTO && saved.created_by_user_id) {
+      this.usersService.findById(saved.created_by_user_id).then((user) => {
+        if (user) {
+          this.emailService.sendTicketResolved({
+            user: { nombre: user.nombre, email: user.email },
+            ticket: { id: saved.id, asunto: saved.asunto },
+          });
+        }
+      }).catch((err) => this.logger.error(`Could not send resolution email for ticket ${id}`, err));
+    }
+
+    return saved;
+  }
+
+  async userResponded(id: string, userId: string): Promise<Ticket> {
+    const ticket = await this.findOne(id);
+
+    if (ticket.created_by_user_id !== userId) {
+      throw new ForbiddenException('No podés responder a este ticket');
+    }
+    if (ticket.estado !== TicketStatus.ESPERANDO_USUARIO) {
+      throw new BadRequestException('El ticket no está esperando tu respuesta');
+    }
+
+    ticket.estado = TicketStatus.EN_PROGRESO;
+    ticket.last_activity_at = new Date();
+    return this.repo.save(ticket);
+  }
+
+  async addAttachments(ticketId: string, files: Express.Multer.File[]): Promise<TicketAttachment[]> {
+    const ticket = await this.findOne(ticketId);
+    const saved: TicketAttachment[] = [];
+
+    for (const file of files) {
+      const { key, url } = await this.uploadsService.uploadFile(file, `tickets/${ticketId}`);
+      const attachment = this.attachmentRepo.create({
+        ticket_id: ticket.id,
+        filename: file.originalname,
+        url,
+        key,
+        mimetype: file.mimetype,
+        size: file.size,
+      });
+      saved.push(await this.attachmentRepo.save(attachment));
+    }
+
+    return saved;
   }
 
   async applyAiDecision(decision: AiDecisionDto): Promise<Ticket> {
@@ -184,6 +266,24 @@ export class TicketsService {
           created_by_name: saved.created_by_name ?? null,
         },
       });
+    }
+
+    // Email al usuario que creó el ticket
+    if (saved.created_by_user_id && saved.tecnico_asignado) {
+      this.usersService.findById(saved.created_by_user_id).then((user) => {
+        if (user?.email) {
+          this.emailService.sendTicketAssignedToUser({
+            user: { nombre: user.nombre, email: user.email },
+            ticket: {
+              id: saved.id,
+              asunto: saved.asunto,
+              prioridad: saved.prioridad ?? null,
+              nivel_asignado: saved.nivel_asignado ?? null,
+            },
+            tech: { nombre: saved.tecnico_asignado!.nombre },
+          });
+        }
+      }).catch((err) => this.logger.error(`Could not fetch user for assignment email on ticket ${saved.id}`, err));
     }
 
     return saved;

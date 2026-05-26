@@ -10,10 +10,15 @@ import {
   Post,
   Query,
   Request,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
+import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -74,6 +79,24 @@ export class TicketsController {
     return this.service.findByTechnician(techId);
   }
 
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('technician', 'admin')
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTicketStatusDto,
+    @Request() req,
+  ) {
+    return this.service.updateStatus(id, dto, req.user.id);
+  }
+
+  @Patch(':id/user-response')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('user')
+  userResponded(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.service.userResponded(id, req.user.id);
+  }
+
   @Patch(':id/resolve')
   @UseGuards(JwtAuthGuard)
   markResolved(@Param('id', ParseUUIDPipe) id: string) {
@@ -93,5 +116,18 @@ export class TicketsController {
   @HttpCode(204)
   deleteTicket(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     return this.service.deleteTicket(id, req.user.id);
+  }
+
+  @Post(':id/attachments')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('files', 10, {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB por archivo
+  }))
+  addAttachments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.service.addAttachments(id, files);
   }
 }
