@@ -7,6 +7,20 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 
+export interface NewCommentPayload {
+  ticketId: string;
+  technicianId: string | null;
+  userId: string | null;
+  comment: {
+    id: string;
+    author_name: string;
+    author_role: string;
+    body: string;
+    attachments: Array<{ url: string; filename: string; mimetype: string; key: string }>;
+    created_at: string;
+  };
+}
+
 export interface TicketUpdatedPayload {
   ticketId: string;
   status: string;
@@ -51,6 +65,15 @@ export class TicketsGateway implements OnGatewayInit, OnGatewayConnection {
       this.logger.log(`User ${userId} connected (socket: ${client.id})`);
     } else {
       this.logger.log(`Anonymous client connected (socket: ${client.id})`);
+    }
+  }
+
+  emitNewComment(payload: NewCommentPayload): void {
+    if (payload.technicianId) {
+      this.server.to(`tech:${payload.technicianId}`).emit('ticket:new_comment', payload);
+    }
+    if (payload.userId) {
+      this.server.to(`user:${payload.userId}`).emit('ticket:new_comment', payload);
     }
   }
 

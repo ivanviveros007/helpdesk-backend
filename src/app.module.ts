@@ -18,6 +18,7 @@ import { EmailModule } from './email/email.module';
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
 import { TicketAttachment } from './tickets/entities/ticket-attachment.entity';
+import { TicketComment } from './tickets/entities/ticket-comment.entity';
 import { Level } from './levels/entities/level.entity';
 import { Technician } from './technicians/entities/technician.entity';
 import { Skill } from './technicians/entities/skill.entity';
@@ -37,7 +38,7 @@ import { Invitation } from './invitations/entities/invitation.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('database.url'),
-        entities: [Ticket, TicketAttachment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation],
+        entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation],
         synchronize: config.get<string>('nodeEnv') !== 'production',
         logging: config.get<string>('nodeEnv') === 'development',
       }),

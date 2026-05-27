@@ -19,6 +19,7 @@ import { memoryStorage } from 'multer';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
+import { AddCommentDto } from './dto/add-comment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -116,6 +117,32 @@ export class TicketsController {
   @HttpCode(204)
   deleteTicket(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     return this.service.deleteTicket(id, req.user.id);
+  }
+
+  @Get(':id/with-comments')
+  @UseGuards(JwtAuthGuard)
+  findOneWithComments(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.findOneWithComments(id);
+  }
+
+  @Post(':id/comments')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('files', 5, {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  addComment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('body') body: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req,
+  ) {
+    return this.service.addComment(
+      id,
+      { body },
+      { id: req.user.id, nombre: req.user.nombre, role: req.user.role },
+      files ?? [],
+    );
   }
 
   @Post(':id/attachments')

@@ -108,6 +108,60 @@ export class EmailService {
     }
   }
 
+  async sendNewComment(params: {
+    to: { nombre: string; email: string };
+    from: { nombre: string; role: string };
+    ticket: { id: string; asunto: string };
+    body: string;
+  }): Promise<void> {
+    const { to, from, ticket, body } = params;
+    const roleLabel = from.role === 'technician' ? 'Support Technician' : from.role === 'admin' ? 'Admin' : 'User';
+    try {
+      await this.resend.emails.send({
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
+        to: to.email,
+        subject: `💬 New reply on ticket: ${ticket.asunto}`,
+        html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+        <tr>
+          <td style="background:#4f46e5;padding:24px 32px">
+            <p style="margin:0;color:#c7d2fe;font-size:13px;font-weight:500">HelpDesk AI</p>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700">💬 New Reply</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <p style="margin:0 0 8px;color:#374151;font-size:15px">Hi <strong>${esc(to.nombre)}</strong>,</p>
+            <p style="margin:0 0 20px;color:#6b7280;font-size:14px"><strong>${esc(from.nombre)}</strong> (${esc(roleLabel)}) replied on ticket: <strong>${esc(ticket.asunto)}</strong></p>
+            <div style="background:#f9fafb;border-left:4px solid #4f46e5;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px">
+              <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">${esc(body)}</p>
+            </div>
+            <a href="${this.frontendUrl}/tickets/${ticket.id}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">View Ticket →</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:16px 32px;text-align:center">
+            <p style="margin:0;font-size:12px;color:#9ca3af">HelpDesk AI · Reply to this ticket in the portal</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+      });
+      this.logger.log(`New comment email sent to ${to.email} for ticket ${ticket.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send comment email to ${to.email}`, err);
+    }
+  }
+
   async sendTicketResolved(params: {
     user: { nombre: string; email: string };
     ticket: { id: string; asunto: string };

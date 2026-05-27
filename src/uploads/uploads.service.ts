@@ -10,9 +10,15 @@ export class UploadsService {
   private readonly bucket: string;
   private readonly endpoint: string;
 
+  private readonly publicUrl: string;
+
   constructor(private readonly config: ConfigService) {
     this.bucket = config.getOrThrow('R2_BUCKET');
     this.endpoint = config.getOrThrow('R2_ENDPOINT');
+    this.publicUrl = config.get<string>('R2_PUBLIC_URL') ?? '';
+    if (!this.publicUrl) {
+      this.logger.warn('R2_PUBLIC_URL not set — uploaded files will not have public URLs');
+    }
 
     this.s3 = new S3Client({
       region: 'auto',
@@ -35,7 +41,7 @@ export class UploadsService {
       ContentType: file.mimetype,
     }));
 
-    const url = `${this.endpoint}/${this.bucket}/${key}`;
+    const url = `${this.publicUrl}/${key}`;
     this.logger.log(`Uploaded ${key} (${file.size} bytes)`);
     return { key, url };
   }

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Technician } from '../../technicians/entities/technician.entity';
 import { TicketAttachment } from './ticket-attachment.entity';
+import { TicketComment } from './ticket-comment.entity';
 
 export enum TicketStatus {
   PENDIENTE_IA = 'PENDIENTE_IA',
@@ -68,6 +69,9 @@ export class Ticket {
 
   @OneToMany(() => TicketAttachment, (a) => a.ticket, { eager: true, cascade: true })
   attachments: TicketAttachment[];
+
+  @OneToMany(() => TicketComment, (c) => c.ticket)
+  comments: TicketComment[];
 
   @CreateDateColumn()
   created_at: Date;

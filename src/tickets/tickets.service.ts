@@ -9,9 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Ticket, TicketStatus } from './entities/ticket.entity';
 import { TicketAttachment } from './entities/ticket-attachment.entity';
+import { TicketComment } from './entities/ticket-comment.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { AiDecisionDto } from './dto/ai-decision.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
+import { AddCommentDto } from './dto/add-comment.dto';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { TicketsGateway } from './tickets.gateway';
@@ -28,6 +30,8 @@ export class TicketsService {
     private readonly repo: Repository<Ticket>,
     @InjectRepository(TicketAttachment)
     private readonly attachmentRepo: Repository<TicketAttachment>,
+    @InjectRepository(TicketComment)
+    private readonly commentRepo: Repository<TicketComment>,
     private readonly aiClient: AiClientService,
     private readonly techniciansService: TechniciansService,
     private readonly gateway: TicketsGateway,
@@ -102,7 +106,8 @@ export class TicketsService {
       await this.techniciansService.decrementCarga(ticket.tecnico_asignado.id);
     }
 
-    // Email al usuario que creó el ticket
+    this.emitStatusChange(saved);
+
     if (saved.created_by_user_id) {
       this.usersService.findById(saved.created_by_user_id).then((user) => {
         if (user) {
@@ -169,6 +174,8 @@ export class TicketsService {
 
     const saved = await this.repo.save(ticket);
 
+    this.emitStatusChange(saved);
+
     if (dto.estado === TicketStatus.RESUELTO && saved.created_by_user_id) {
       this.usersService.findById(saved.created_by_user_id).then((user) => {
         if (user) {
@@ -196,6 +203,76 @@ export class TicketsService {
     ticket.estado = TicketStatus.EN_PROGRESO;
     ticket.last_activity_at = new Date();
     return this.repo.save(ticket);
+  }
+
+  async findOneWithComments(id: string): Promise<Ticket> {
+    const ticket = await this.repo.findOne({ where: { id }, relations: { comments: true } });
+    if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
+    ticket.comments.sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+    return ticket;
+  }
+
+  async addComment(
+    ticketId: string,
+    dto: AddCommentDto,
+    author: { id: string; nombre: string; role: string },
+    files: Express.Multer.File[] = [],
+  ): Promise<TicketComment> {
+    const ticket = await this.findOne(ticketId);
+
+    const attachments: Array<{ url: string; filename: string; mimetype: string; key: string }> = [];
+    for (const file of files) {
+      const { key, url } = await this.uploadsService.uploadFile(file, `tickets/${ticketId}/comments`);
+      attachments.push({ url, filename: file.originalname, mimetype: file.mimetype, key });
+    }
+
+    const comment = this.commentRepo.create({
+      ticket_id: ticketId,
+      author_id: author.id,
+      author_name: author.nombre,
+      author_role: author.role,
+      body: dto.body,
+      attachments,
+    });
+    const saved = await this.commentRepo.save(comment);
+
+    this.gateway.emitNewComment({
+      ticketId,
+      technicianId: ticket.tecnico_asignado?.id ?? null,
+      userId: ticket.created_by_user_id ?? null,
+      comment: {
+        id: saved.id,
+        author_name: saved.author_name,
+        author_role: saved.author_role,
+        body: saved.body,
+        attachments: saved.attachments ?? [],
+        created_at: saved.created_at.toISOString(),
+      },
+    });
+
+    // Email to the other party
+    const isFromTech = author.role === 'technician' || author.role === 'admin';
+    if (isFromTech && ticket.created_by_user_id) {
+      this.usersService.findById(ticket.created_by_user_id).then((user) => {
+        if (user?.email) {
+          this.emailService.sendNewComment({
+            to: { nombre: user.nombre, email: user.email },
+            from: { nombre: author.nombre, role: author.role },
+            ticket: { id: ticket.id, asunto: ticket.asunto },
+            body: dto.body,
+          });
+        }
+      }).catch(() => null);
+    } else if (!isFromTech && ticket.tecnico_asignado?.email) {
+      this.emailService.sendNewComment({
+        to: { nombre: ticket.tecnico_asignado.nombre, email: ticket.tecnico_asignado.email },
+        from: { nombre: author.nombre, role: author.role },
+        ticket: { id: ticket.id, asunto: ticket.asunto },
+        body: dto.body,
+      });
+    }
+
+    return saved;
   }
 
   async addAttachments(ticketId: string, files: Express.Multer.File[]): Promise<TicketAttachment[]> {
@@ -335,6 +412,21 @@ export class TicketsService {
         total_asignados: parseInt(t.total),
       })),
     };
+  }
+
+  private emitStatusChange(ticket: Ticket): void {
+    this.gateway.emitTicketUpdated({
+      ticketId: ticket.id,
+      status: ticket.estado,
+      category: ticket.categoria ?? null,
+      priority: ticket.prioridad ?? null,
+      level: ticket.nivel_asignado ?? null,
+      assignedTechnicianId: ticket.tecnico_asignado?.id ?? null,
+      assignedTechnicianName: ticket.tecnico_asignado?.nombre ?? null,
+      reasoning: ticket.razonamiento_ia ?? null,
+      createdByUserId: ticket.created_by_user_id ?? null,
+      updatedAt: ticket.updated_at.toISOString(),
+    });
   }
 
   private async processWithAi(ticketId: string, asunto: string, descripcion: string, orgId?: string | null): Promise<void> {
