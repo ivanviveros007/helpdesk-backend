@@ -71,6 +71,71 @@ export class EmailService {
     }
   }
 
+  /** Actualización masiva de incidente a un cliente afectado. */
+  async sendIncidentUpdate(params: {
+    to: { nombre: string; email: string };
+    ticket: { id: string };
+    incident: { title: string };
+    message: string;
+    tracking_token: string | null;
+  }): Promise<void> {
+    const { to, ticket, incident, message, tracking_token } = params;
+    const shortId = ticket.id.slice(0, 8).toUpperCase();
+    const trackingLink = tracking_token
+      ? `<a href="${this.frontendUrl}/p/_/seguimiento?token=${tracking_token}" style="color:#2F6FED">Ver mi reclamo →</a>`
+      : '';
+    try {
+      await this.resend.emails.send({
+        from: 'HelpDesk AI <noreply@helpdesk-ai.cloud>',
+        to: to.email,
+        subject: `Actualización sobre tu reclamo #${shortId}`,
+        html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px;max-width:560px;margin:0 auto">
+          <h2 style="color:#111827">Hola ${to.nombre},</h2>
+          <p>Tenemos una actualización sobre tu reclamo <strong>#${shortId}</strong>:</p>
+          <div style="background:#F9FAFB;border-left:3px solid #2F6FED;padding:12px 16px;margin:16px 0">${message}</div>
+          <p style="font-size:13px">${trackingLink}</p>
+        </body></html>`,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send incident update to ${to.email}`, err);
+    }
+  }
+
+  /** Encuesta CSAT post-resolución con estrellas clickeables. */
+  async sendCsatRequest(params: {
+    to: { nombre: string; email: string };
+    org_nombre: string;
+    ticket: { id: string };
+    tracking_token: string;
+  }): Promise<void> {
+    const { to, org_nombre, ticket, tracking_token } = params;
+    const shortId = ticket.id.slice(0, 8).toUpperCase();
+    const baseUrl = `${this.frontendUrl}/csat?token=${tracking_token}&score=`;
+    const stars = [1, 2, 3, 4, 5]
+      .map(
+        (n) =>
+          `<a href="${baseUrl}${n}" style="text-decoration:none;font-size:28px;margin:0 4px">${'⭐'.repeat(n)}</a>`,
+      )
+      .join('<br>');
+    try {
+      await this.resend.emails.send({
+        from: `${org_nombre} <noreply@helpdesk-ai.cloud>`,
+        to: to.email,
+        subject: `¿Cómo resolvimos tu reclamo #${shortId}?`,
+        html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px;max-width:560px;margin:0 auto;text-align:center">
+          <h2 style="color:#111827">Hola ${to.nombre},</h2>
+          <p>Tu reclamo <strong>#${shortId}</strong> fue resuelto. ¿Quedaste conforme con la resolución?</p>
+          <p style="margin:24px 0">${stars}</p>
+          <p style="font-size:12px;color:#9CA3AF">Hacé clic en la cantidad de estrellas que refleje tu experiencia.</p>
+          <p style="font-size:13px;color:#9CA3AF;margin-top:24px">— Equipo de ${org_nombre}</p>
+        </body></html>`,
+      });
+      this.logger.log(`CSAT request sent to ${to.email} for ticket ${ticket.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send CSAT request to ${to.email}`, err);
+    }
+  }
+
   async sendTicketAssigned(params: {
     tech: { nombre: string; email: string };
     ticket: {

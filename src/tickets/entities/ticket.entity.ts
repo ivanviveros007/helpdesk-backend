@@ -100,6 +100,23 @@ export class Ticket {
   @Column({ nullable: true })
   order_reference: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  incident_id: string | null;
+
+  // CSAT post-resolución
+  @Column({ type: 'int', nullable: true })
+  csat_score: number | null; // 1-5
+
+  @Column({ type: 'text', nullable: true })
+  csat_comment: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  csat_sent_at: Date | null;
+
+  // SLA: timestamp de la primera respuesta de un agente
+  @Column({ type: 'timestamp', nullable: true })
+  first_response_at: Date | null;
+
   @OneToMany(() => TicketAttachment, (a) => a.ticket, { eager: true, cascade: true })
   attachments: TicketAttachment[];
 

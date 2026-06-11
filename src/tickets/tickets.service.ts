@@ -168,6 +168,17 @@ export class TicketsService {
     return saved;
   }
 
+  /** Guarda el score CSAT (1-5) de un reclamo. */
+  async saveCsat(ticketId: string, score: number, comment?: string): Promise<void> {
+    if (score < 1 || score > 5) {
+      throw new BadRequestException('Score must be between 1 and 5');
+    }
+    await this.repo.update(
+      { id: ticketId },
+      { csat_score: score, csat_comment: comment ?? null },
+    );
+  }
+
   /** Contexto del cliente para el panel lateral del agente. */
   async getCustomerContext(ticketId: string, org_id?: string | null) {
     const ticket = await this.findOne(ticketId);
@@ -382,6 +393,15 @@ export class TicketsService {
       attachments,
     });
     const saved = await this.commentRepo.save(comment);
+
+    // SLA: registrar primera respuesta de un agente
+    if (
+      !ticket.first_response_at &&
+      (author.role === 'technician' || author.role === 'admin')
+    ) {
+      ticket.first_response_at = saved.created_at;
+      await this.repo.save(ticket);
+    }
 
     this.gateway.emitNewComment({
       ticketId,

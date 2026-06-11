@@ -16,6 +16,8 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { EmailModule } from './email/email.module';
 import { CategoriesModule } from './categories/categories.module';
 import { PublicModule } from './public/public.module';
+import { MacrosModule } from './macros/macros.module';
+import { IncidentsModule } from './incidents/incidents.module';
 
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
@@ -30,6 +32,8 @@ import { SuperAdmin } from './super-admin/entities/super-admin.entity';
 import { Invitation } from './invitations/entities/invitation.entity';
 import { ComplaintCategory } from './categories/entities/complaint-category.entity';
 import { CustomerNote } from './public/entities/customer-note.entity';
+import { Macro } from './macros/entities/macro.entity';
+import { Incident } from './incidents/entities/incident.entity';
 
 @Module({
   imports: [
@@ -42,7 +46,7 @@ import { CustomerNote } from './public/entities/customer-note.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('database.url'),
-        entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation, ComplaintCategory, CustomerNote],
+        entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation, ComplaintCategory, CustomerNote, Macro, Incident],
         synchronize: config.get<string>('nodeEnv') !== 'production',
         logging: config.get<string>('nodeEnv') === 'development',
       }),
@@ -62,6 +66,8 @@ import { CustomerNote } from './public/entities/customer-note.entity';
     EmailModule,
     CategoriesModule,
     PublicModule,
+    MacrosModule,
+    IncidentsModule,
   ],
 })
 export class AppModule {}

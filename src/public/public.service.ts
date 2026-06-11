@@ -131,6 +131,13 @@ export class PublicService {
     };
   }
 
+  /** Registra el score CSAT del cliente vía token. */
+  async submitCsat(token: string, score: number, comment?: string) {
+    const ticket = await this.ticketsService.findByTrackingToken(token);
+    await this.ticketsService.saveCsat(ticket.id, score, comment);
+    return { ok: true };
+  }
+
   async reply(token: string, body: string) {
     const comment = await this.ticketsService.addPublicReply(token, body);
     return {

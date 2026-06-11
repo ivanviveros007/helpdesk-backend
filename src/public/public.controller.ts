@@ -35,4 +35,13 @@ export class PublicController {
   reply(@Param('token') token: string, @Body() dto: PublicReplyDto) {
     return this.service.reply(token, dto.body);
   }
+
+  @ApiOperation({ summary: 'Submit CSAT score (1-5) via tracking token' })
+  @Post('csat')
+  submitCsat(
+    @Query('token') token: string,
+    @Body() dto: { score: number; comment?: string },
+  ) {
+    return this.service.submitCsat(token, Number(dto.score), dto.comment);
+  }
 }

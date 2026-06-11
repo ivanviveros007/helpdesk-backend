@@ -12,6 +12,7 @@ import { TechniciansModule } from '../technicians/technicians.module';
 import { EmailModule } from '../email/email.module';
 import { UsersModule } from '../users/users.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     EmailModule,
     UsersModule,
     UploadsModule,
+    OrganizationsModule,
   ],
   providers: [TicketsService, TicketsGateway, TicketsCron],
   controllers: [TicketsController],
