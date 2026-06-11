@@ -21,6 +21,14 @@ export enum TicketStatus {
   CANCELADO = 'CANCELADO',
 }
 
+export enum TicketChannel {
+  FORM = 'form',
+  EMAIL = 'email',
+  WHATSAPP = 'whatsapp',
+  WIDGET = 'widget',
+  INSTAGRAM = 'instagram',
+}
+
 @Entity('tickets')
 export class Ticket {
   @PrimaryGeneratedColumn('uuid')
@@ -66,6 +74,31 @@ export class Ticket {
 
   @Column({ type: 'timestamp', nullable: true })
   last_activity_at: Date | null;
+
+  @Column({ type: 'enum', enum: TicketChannel, default: TicketChannel.FORM })
+  channel: TicketChannel;
+
+  // Cliente final sin cuenta (reclamos por canales públicos)
+  @Column({ nullable: true })
+  customer_email: string;
+
+  @Column({ nullable: true })
+  customer_name: string;
+
+  @Column({ nullable: true })
+  customer_phone: string;
+
+  @Column({ nullable: true, unique: true })
+  tracking_token: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  tracking_token_expires_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  complaint_category_id: string | null;
+
+  @Column({ nullable: true })
+  order_reference: string;
 
   @OneToMany(() => TicketAttachment, (a) => a.ticket, { eager: true, cascade: true })
   attachments: TicketAttachment[];

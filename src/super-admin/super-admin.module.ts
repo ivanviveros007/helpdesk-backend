@@ -9,10 +9,12 @@ import { Organization } from '../organizations/entities/organization.entity';
 import { Technician } from '../technicians/entities/technician.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { User } from '../users/entities/user.entity';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SuperAdmin, Organization, Technician, Ticket, User]),
+    CategoriesModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService): JwtModuleOptions => ({

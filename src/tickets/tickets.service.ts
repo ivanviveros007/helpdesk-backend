@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
-import { Ticket, TicketStatus } from './entities/ticket.entity';
+import { randomBytes } from 'crypto';
+import { Ticket, TicketChannel, TicketStatus } from './entities/ticket.entity';
 import { TicketAttachment } from './entities/ticket-attachment.entity';
 import { TicketComment } from './entities/ticket-comment.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -57,6 +58,152 @@ export class TicketsService {
     );
 
     return { ticket_id: saved.id, status: saved.estado };
+  }
+
+  /** Crea un reclamo desde el portal público — cliente final sin cuenta. */
+  async createPublicComplaint(params: {
+    org_id: string;
+    org_slug: string;
+    org_nombre: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone?: string;
+    order_reference?: string;
+    category_name: string;
+    category_id: string;
+    description: string;
+    channel: TicketChannel;
+  }): Promise<{ ticket_id: string; tracking_token: string }> {
+    const tracking_token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 90);
+
+    const asunto = `[${params.category_name}] ${params.description.slice(0, 80)}`;
+    const ticket = this.repo.create({
+      asunto,
+      descripcion_raw: params.description,
+      estado: TicketStatus.PENDIENTE_IA,
+      created_by_name: params.customer_name,
+      org_id: params.org_id,
+      channel: params.channel,
+      customer_email: params.customer_email,
+      customer_name: params.customer_name,
+      customer_phone: params.customer_phone,
+      order_reference: params.order_reference,
+      complaint_category_id: params.category_id,
+      tracking_token,
+      tracking_token_expires_at: expiresAt,
+    });
+    const saved = await this.repo.save(ticket);
+
+    this.processWithAi(saved.id, asunto, params.description, saved.org_id).catch((err) =>
+      this.logger.error(`AI processing failed for public complaint ${saved.id}`, err),
+    );
+
+    this.emailService
+      .sendComplaintReceived({
+        customer: { nombre: params.customer_name, email: params.customer_email },
+        org: { nombre: params.org_nombre, slug: params.org_slug },
+        ticket: { id: saved.id, asunto },
+        tracking_token,
+      })
+      .catch((err) =>
+        this.logger.error(`Could not send complaint confirmation for ${saved.id}`, err),
+      );
+
+    return { ticket_id: saved.id, tracking_token };
+  }
+
+  /** Busca un reclamo por tracking token. Lanza 404 si no existe o expiró. */
+  async findByTrackingToken(token: string): Promise<Ticket> {
+    const ticket = await this.repo.findOne({
+      where: { tracking_token: token },
+      relations: { comments: true },
+      order: { comments: { created_at: 'ASC' } },
+    });
+    if (!ticket) throw new NotFoundException('Reclamo no encontrado');
+    if (
+      ticket.tracking_token_expires_at &&
+      ticket.tracking_token_expires_at < new Date()
+    ) {
+      throw new NotFoundException('El link de seguimiento expiró');
+    }
+    return ticket;
+  }
+
+  /** Agrega una respuesta del cliente final vía link de seguimiento. */
+  async addPublicReply(token: string, body: string): Promise<TicketComment> {
+    const ticket = await this.findByTrackingToken(token);
+
+    const comment = this.commentRepo.create({
+      ticket_id: ticket.id,
+      author_id: ticket.customer_email,
+      author_name: ticket.customer_name ?? 'Cliente',
+      author_role: 'user',
+      body,
+      attachments: [],
+    });
+    const saved = await this.commentRepo.save(comment);
+
+    ticket.last_activity_at = new Date();
+    if (ticket.estado === TicketStatus.ESPERANDO_USUARIO) {
+      ticket.estado = TicketStatus.EN_PROGRESO;
+    }
+    await this.repo.save(ticket);
+
+    this.gateway.emitNewComment({
+      ticketId: ticket.id,
+      technicianId: ticket.tecnico_asignado?.id ?? null,
+      userId: null,
+      comment: {
+        id: saved.id,
+        author_name: saved.author_name,
+        author_role: saved.author_role,
+        body: saved.body,
+        attachments: [],
+        created_at: saved.created_at.toISOString(),
+      },
+    });
+
+    return saved;
+  }
+
+  /** Contexto del cliente para el panel lateral del agente. */
+  async getCustomerContext(ticketId: string, org_id?: string | null) {
+    const ticket = await this.findOne(ticketId);
+
+    const customerKey = ticket.customer_email ?? ticket.created_by_user_id;
+    let history: Ticket[] = [];
+    if (customerKey) {
+      const query = this.repo
+        .createQueryBuilder('t')
+        .where('t.id != :id', { id: ticketId })
+        .orderBy('t.created_at', 'DESC')
+        .take(5);
+      if (ticket.customer_email) {
+        query.andWhere('t.customer_email = :email', { email: ticket.customer_email });
+      } else {
+        query.andWhere('t.created_by_user_id = :uid', { uid: ticket.created_by_user_id });
+      }
+      if (org_id) query.andWhere('t.org_id = :org_id', { org_id });
+      history = await query.getMany();
+    }
+
+    return {
+      customer: {
+        name: ticket.customer_name ?? ticket.created_by_name,
+        email: ticket.customer_email,
+        phone: ticket.customer_phone,
+        channel: ticket.channel,
+      },
+      order_reference: ticket.order_reference,
+      history: history.map((t) => ({
+        id: t.id,
+        asunto: t.asunto,
+        estado: t.estado,
+        created_at: t.created_at,
+      })),
+    };
   }
 
   async findAll(org_id?: string | null): Promise<Ticket[]> {

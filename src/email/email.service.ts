@@ -37,6 +37,40 @@ export class EmailService {
     }
   }
 
+  /** Confirmación al cliente final cuando crea un reclamo por canal público. */
+  async sendComplaintReceived(params: {
+    customer: { nombre: string; email: string };
+    org: { nombre: string; slug: string };
+    ticket: { id: string; asunto: string };
+    tracking_token: string;
+  }): Promise<void> {
+    const { customer, org, ticket, tracking_token } = params;
+    const trackingUrl = `${this.frontendUrl}/p/${org.slug}/seguimiento?token=${tracking_token}`;
+    const shortId = ticket.id.slice(0, 8).toUpperCase();
+    try {
+      await this.resend.emails.send({
+        from: `${org.nombre} <noreply@helpdesk-ai.cloud>`,
+        to: customer.email,
+        subject: `Recibimos tu reclamo #${shortId} — ${org.nombre}`,
+        html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px;max-width:560px;margin:0 auto">
+          <h2 style="color:#111827;margin-bottom:8px">Hola ${customer.nombre},</h2>
+          <p>Recibimos tu reclamo y nuestro equipo ya está trabajando en él.</p>
+          <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin:24px 0">
+            <p style="margin:0 0 4px;font-size:13px;color:#6B7280">Número de reclamo</p>
+            <p style="margin:0;font-weight:600;font-size:16px;color:#111827">#${shortId}</p>
+          </div>
+          <p>Podés seguir el estado de tu reclamo en cualquier momento, sin necesidad de crear una cuenta:</p>
+          <a href="${trackingUrl}" style="display:inline-block;background:#2F6FED;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;margin:16px 0">Seguir mi reclamo →</a>
+          <p style="font-size:13px;color:#6B7280;margin-top:24px">Si el botón no funciona, copiá este link:<br>${trackingUrl}</p>
+          <p style="font-size:13px;color:#9CA3AF;margin-top:32px">— Equipo de ${org.nombre}</p>
+        </body></html>`,
+      });
+      this.logger.log(`Complaint confirmation sent to ${customer.email} for ticket ${ticket.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send complaint confirmation to ${customer.email}`, err);
+    }
+  }
+
   async sendTicketAssigned(params: {
     tech: { nombre: string; email: string };
     ticket: {

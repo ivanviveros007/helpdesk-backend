@@ -10,6 +10,7 @@ import { Ticket, TicketStatus } from '../tickets/entities/ticket.entity';
 import { User } from '../users/entities/user.entity';
 import { LoginSuperAdminDto } from './dto/login-super-admin.dto';
 import { CreateOrgDto } from './dto/create-org.dto';
+import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class SuperAdminService {
@@ -26,6 +27,7 @@ export class SuperAdminService {
     private readonly userRepo: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
+    private readonly categoriesService: CategoriesService,
   ) {}
 
   async login(dto: LoginSuperAdminDto) {
@@ -77,6 +79,9 @@ export class SuperAdminService {
       estado_activo: true,
     });
     await this.techRepo.save(admin);
+
+    // Categorías de reclamo default para la nueva org
+    await this.categoriesService.seedDefaults(org.id);
 
     return this.attachOrgStats(org);
   }
