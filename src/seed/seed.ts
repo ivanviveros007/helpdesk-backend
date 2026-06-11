@@ -50,6 +50,26 @@ async function seed() {
   await categoriesService.seedDefaults(org.id);
   console.log('✅ Categorías de reclamo default verificadas.');
 
+  // ─── Org demo "Nebroo" para la página /demo/nebroo.html ──────────────────
+  let nebroo = await orgRepo.findOneBy({ slug: 'nebroo' });
+  if (!nebroo) {
+    nebroo = await orgRepo.save(
+      orgRepo.create({
+        nombre: 'Nebroo',
+        slug: 'nebroo',
+        plan: 'trial',
+        company_type: 'ecommerce',
+        portal_primary_color: '#2563eb',
+        portal_language: 'en',
+        portal_welcome_message:
+          "Tell us what happened with your order and we'll get back to you shortly.",
+        portal_order_label: 'Order number',
+      }),
+    );
+    console.log('✅ Organización demo creada: Nebroo');
+  }
+  await categoriesService.seedDefaults(nebroo.id);
+
   // ─── Niveles ──────────────────────────────────────────────────────────────
   const existingLevels = await levelsService.findAll();
 

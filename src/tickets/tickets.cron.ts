@@ -46,6 +46,7 @@ export class TicketsCron {
         org_nombre: org?.nombre ?? 'Soporte',
         ticket: { id: ticket.id },
         tracking_token: ticket.tracking_token,
+        language: org?.portal_language,
       });
       ticket.csat_sent_at = new Date();
       await this.repo.save(ticket);

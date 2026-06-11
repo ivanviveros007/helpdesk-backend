@@ -73,6 +73,7 @@ export class TicketsService {
     org_id: string;
     org_slug: string;
     org_nombre: string;
+    org_language?: string;
     customer_name: string;
     customer_email: string;
     customer_phone?: string;
@@ -112,7 +113,7 @@ export class TicketsService {
       this.emailService
         .sendComplaintReceived({
           customer: { nombre: params.customer_name, email: params.customer_email },
-          org: { nombre: params.org_nombre, slug: params.org_slug },
+          org: { nombre: params.org_nombre, slug: params.org_slug, language: params.org_language },
           ticket: { id: saved.id, asunto },
           tracking_token,
         })
@@ -121,10 +122,11 @@ export class TicketsService {
         );
     } else if (params.channel === TicketChannel.WHATSAPP && params.customer_phone) {
       const shortId = saved.id.slice(0, 8).toUpperCase();
-      void this.whatsappService.sendMessage(
-        params.customer_phone,
-        `✅ Recibimos tu reclamo #${shortId}. Te vamos respondiendo por acá. — ${params.org_nombre}`,
-      );
+      const confirmMsg =
+        params.org_language === 'en'
+          ? `✅ We received your request #${shortId}. We'll keep you posted right here. — ${params.org_nombre}`
+          : `✅ Recibimos tu reclamo #${shortId}. Te vamos respondiendo por acá. — ${params.org_nombre}`;
+      void this.whatsappService.sendMessage(params.customer_phone, confirmMsg);
     }
 
     this.integrationsService.notify(params.org_id, {

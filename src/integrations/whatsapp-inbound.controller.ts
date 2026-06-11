@@ -64,6 +64,7 @@ export class WhatsappInboundController {
       org_id: orgId,
       org_slug: org.slug,
       org_nombre: org.nombre,
+      org_language: org.portal_language,
       customer_name: payload.ProfileName ?? customerPhone,
       customer_email: '', // WhatsApp puro: sin email; confirmación va por WhatsApp
       customer_phone: customerPhone,

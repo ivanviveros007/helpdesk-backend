@@ -40,29 +40,53 @@ export class EmailService {
   /** Confirmación al cliente final cuando crea un reclamo por canal público. */
   async sendComplaintReceived(params: {
     customer: { nombre: string; email: string };
-    org: { nombre: string; slug: string };
+    org: { nombre: string; slug: string; language?: string };
     ticket: { id: string; asunto: string };
     tracking_token: string;
   }): Promise<void> {
     const { customer, org, ticket, tracking_token } = params;
     const trackingUrl = `${this.frontendUrl}/p/${org.slug}/seguimiento?token=${tracking_token}`;
     const shortId = ticket.id.slice(0, 8).toUpperCase();
+    const en = org.language === 'en';
+
+    const t = en
+      ? {
+          subject: `We received your request #${shortId} — ${org.nombre}`,
+          greeting: `Hi ${customer.nombre},`,
+          received: 'We received your request and our team is already working on it.',
+          numberLabel: 'Request number',
+          trackIntro: 'You can check the status of your request anytime — no account needed:',
+          cta: 'Track my request →',
+          fallback: "If the button doesn't work, copy this link:",
+          signoff: `— The ${org.nombre} team`,
+        }
+      : {
+          subject: `Recibimos tu reclamo #${shortId} — ${org.nombre}`,
+          greeting: `Hola ${customer.nombre},`,
+          received: 'Recibimos tu reclamo y nuestro equipo ya está trabajando en él.',
+          numberLabel: 'Número de reclamo',
+          trackIntro: 'Podés seguir el estado de tu reclamo en cualquier momento, sin necesidad de crear una cuenta:',
+          cta: 'Seguir mi reclamo →',
+          fallback: 'Si el botón no funciona, copiá este link:',
+          signoff: `— Equipo de ${org.nombre}`,
+        };
+
     try {
       await this.resend.emails.send({
         from: `${org.nombre} <noreply@helpdesk-ai.cloud>`,
         to: customer.email,
-        subject: `Recibimos tu reclamo #${shortId} — ${org.nombre}`,
+        subject: t.subject,
         html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px;max-width:560px;margin:0 auto">
-          <h2 style="color:#111827;margin-bottom:8px">Hola ${customer.nombre},</h2>
-          <p>Recibimos tu reclamo y nuestro equipo ya está trabajando en él.</p>
+          <h2 style="color:#111827;margin-bottom:8px">${t.greeting}</h2>
+          <p>${t.received}</p>
           <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin:24px 0">
-            <p style="margin:0 0 4px;font-size:13px;color:#6B7280">Número de reclamo</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#6B7280">${t.numberLabel}</p>
             <p style="margin:0;font-weight:600;font-size:16px;color:#111827">#${shortId}</p>
           </div>
-          <p>Podés seguir el estado de tu reclamo en cualquier momento, sin necesidad de crear una cuenta:</p>
-          <a href="${trackingUrl}" style="display:inline-block;background:#2F6FED;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;margin:16px 0">Seguir mi reclamo →</a>
-          <p style="font-size:13px;color:#6B7280;margin-top:24px">Si el botón no funciona, copiá este link:<br>${trackingUrl}</p>
-          <p style="font-size:13px;color:#9CA3AF;margin-top:32px">— Equipo de ${org.nombre}</p>
+          <p>${t.trackIntro}</p>
+          <a href="${trackingUrl}" style="display:inline-block;background:#2F6FED;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;margin:16px 0">${t.cta}</a>
+          <p style="font-size:13px;color:#6B7280;margin-top:24px">${t.fallback}<br>${trackingUrl}</p>
+          <p style="font-size:13px;color:#9CA3AF;margin-top:32px">${t.signoff}</p>
         </body></html>`,
       });
       this.logger.log(`Complaint confirmation sent to ${customer.email} for ticket ${ticket.id}`);
@@ -107,27 +131,46 @@ export class EmailService {
     org_nombre: string;
     ticket: { id: string };
     tracking_token: string;
+    language?: string;
   }): Promise<void> {
-    const { to, org_nombre, ticket, tracking_token } = params;
+    const { to, org_nombre, ticket, tracking_token, language } = params;
     const shortId = ticket.id.slice(0, 8).toUpperCase();
-    const baseUrl = `${this.frontendUrl}/csat?token=${tracking_token}&score=`;
+    const en = language === 'en';
+    const baseUrl = `${this.frontendUrl}/csat?token=${tracking_token}&lang=${en ? 'en' : 'es'}&score=`;
     const stars = [1, 2, 3, 4, 5]
       .map(
         (n) =>
           `<a href="${baseUrl}${n}" style="text-decoration:none;font-size:28px;margin:0 4px">${'⭐'.repeat(n)}</a>`,
       )
       .join('<br>');
+
+    const t = en
+      ? {
+          subject: `How did we do with your request #${shortId}?`,
+          greeting: `Hi ${to.nombre},`,
+          body: `Your request <strong>#${shortId}</strong> has been resolved. How satisfied are you with the resolution?`,
+          hint: 'Click the number of stars that reflects your experience.',
+          signoff: `— The ${org_nombre} team`,
+        }
+      : {
+          subject: `¿Cómo resolvimos tu reclamo #${shortId}?`,
+          greeting: `Hola ${to.nombre},`,
+          body: `Tu reclamo <strong>#${shortId}</strong> fue resuelto. ¿Quedaste conforme con la resolución?`,
+          hint: 'Hacé clic en la cantidad de estrellas que refleje tu experiencia.',
+          signoff: `— Equipo de ${org_nombre}`,
+        };
+
     try {
       await this.resend.emails.send({
         from: `${org_nombre} <noreply@helpdesk-ai.cloud>`,
         to: to.email,
-        subject: `¿Cómo resolvimos tu reclamo #${shortId}?`,
+        subject: t.subject,
         html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#374151;padding:32px;max-width:560px;margin:0 auto;text-align:center">
-          <h2 style="color:#111827">Hola ${to.nombre},</h2>
-          <p>Tu reclamo <strong>#${shortId}</strong> fue resuelto. ¿Quedaste conforme con la resolución?</p>
+          <h2 style="color:#111827">${t.greeting}</h2>
+          <p>${t.body}</p>
           <p style="margin:24px 0">${stars}</p>
-          <p style="font-size:12px;color:#9CA3AF">Hacé clic en la cantidad de estrellas que refleje tu experiencia.</p>
-          <p style="font-size:13px;color:#9CA3AF;margin-top:24px">— Equipo de ${org_nombre}</p>
+          <p style="font-size:12px;color:#9CA3AF">${t.hint}</p>
+          <p style="font-size:13px;color:#9CA3AF;margin-top:24px">${t.signoff}</p>
         </body></html>`,
       });
       this.logger.log(`CSAT request sent to ${to.email} for ticket ${ticket.id}`);

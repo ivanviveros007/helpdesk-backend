@@ -29,6 +29,7 @@ export class PublicService {
         primary_color: org.portal_primary_color,
         welcome_message: org.portal_welcome_message,
         order_label: org.portal_order_label,
+        language: org.portal_language ?? 'es',
       },
       categories: categories.map((c) => ({
         id: c.id,
@@ -52,6 +53,7 @@ export class PublicService {
         org_id: org.id,
         org_slug: org.slug,
         org_nombre: org.nombre,
+        org_language: org.portal_language,
         customer_name: dto.customer_name,
         customer_email: dto.customer_email,
         customer_phone: dto.customer_phone,
@@ -87,6 +89,7 @@ export class PublicService {
         org_id: org.id,
         org_slug: org.slug,
         org_nombre: org.nombre,
+        org_language: org.portal_language,
         customer_name: data.customer_name,
         customer_email: data.customer_email,
         category_id: fallback.id,
@@ -119,6 +122,7 @@ export class PublicService {
             slug: org.slug,
             logo_url: org.portal_logo_url,
             primary_color: org.portal_primary_color,
+            language: org.portal_language ?? 'es',
           }
         : null,
       timeline: (ticket.comments ?? []).map((c) => ({

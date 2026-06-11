@@ -39,6 +39,9 @@ export class Organization {
   @Column({ default: 'Número de pedido' })
   portal_order_label: string;
 
+  @Column({ default: 'es' })
+  portal_language: string; // 'es' | 'en' — idioma de todo lo que ve el cliente final
+
   @CreateDateColumn()
   created_at: Date;
 }
