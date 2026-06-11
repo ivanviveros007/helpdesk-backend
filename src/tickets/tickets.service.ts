@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, In, Not, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Ticket, TicketChannel, TicketStatus } from './entities/ticket.entity';
 import { TicketAttachment } from './entities/ticket-attachment.entity';
@@ -21,6 +23,8 @@ import { TicketsGateway } from './tickets.gateway';
 import { EmailService } from '../email/email.service';
 import { UsersService } from '../users/users.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { IntegrationsService } from '../integrations/integrations.service';
+import { WhatsappService } from '../integrations/whatsapp.service';
 
 @Injectable()
 export class TicketsService {
@@ -39,6 +43,10 @@ export class TicketsService {
     private readonly emailService: EmailService,
     private readonly usersService: UsersService,
     private readonly uploadsService: UploadsService,
+    @Inject(forwardRef(() => IntegrationsService))
+    private readonly integrationsService: IntegrationsService,
+    @Inject(forwardRef(() => WhatsappService))
+    private readonly whatsappService: WhatsappService,
   ) {}
 
   async create(dto: CreateTicketDto, requester: { id: string; nombre: string; entity_type: string; org_id: string | null }): Promise<{ ticket_id: string; status: string }> {
@@ -100,18 +108,48 @@ export class TicketsService {
       this.logger.error(`AI processing failed for public complaint ${saved.id}`, err),
     );
 
-    this.emailService
-      .sendComplaintReceived({
-        customer: { nombre: params.customer_name, email: params.customer_email },
-        org: { nombre: params.org_nombre, slug: params.org_slug },
-        ticket: { id: saved.id, asunto },
-        tracking_token,
-      })
-      .catch((err) =>
-        this.logger.error(`Could not send complaint confirmation for ${saved.id}`, err),
+    if (params.customer_email) {
+      this.emailService
+        .sendComplaintReceived({
+          customer: { nombre: params.customer_name, email: params.customer_email },
+          org: { nombre: params.org_nombre, slug: params.org_slug },
+          ticket: { id: saved.id, asunto },
+          tracking_token,
+        })
+        .catch((err) =>
+          this.logger.error(`Could not send complaint confirmation for ${saved.id}`, err),
+        );
+    } else if (params.channel === TicketChannel.WHATSAPP && params.customer_phone) {
+      const shortId = saved.id.slice(0, 8).toUpperCase();
+      void this.whatsappService.sendMessage(
+        params.customer_phone,
+        `✅ Recibimos tu reclamo #${shortId}. Te vamos respondiendo por acá. — ${params.org_nombre}`,
       );
+    }
+
+    this.integrationsService.notify(params.org_id, {
+      type: 'complaint.created',
+      title: `🆕 Nuevo reclamo #${saved.id.slice(0, 8).toUpperCase()}`,
+      lines: [
+        `Cliente: ${params.customer_name}`,
+        `Categoría: ${params.category_name}`,
+        `Canal: ${params.channel}`,
+      ],
+    });
 
     return { ticket_id: saved.id, tracking_token };
+  }
+
+  /** Reclamo abierto más reciente de un cliente por teléfono (hilo de WhatsApp). */
+  findOpenByCustomerPhone(orgId: string, phone: string): Promise<Ticket | null> {
+    return this.repo.findOne({
+      where: {
+        org_id: orgId,
+        customer_phone: phone,
+        estado: Not(In([TicketStatus.RESUELTO, TicketStatus.CANCELADO])),
+      },
+      order: { created_at: 'DESC' },
+    });
   }
 
   /** Busca un reclamo por tracking token. Lanza 404 si no existe o expiró. */
@@ -401,6 +439,15 @@ export class TicketsService {
     ) {
       ticket.first_response_at = saved.created_at;
       await this.repo.save(ticket);
+    }
+
+    // Reclamo de WhatsApp: la respuesta del agente le llega al cliente por WhatsApp
+    if (
+      ticket.channel === TicketChannel.WHATSAPP &&
+      ticket.customer_phone &&
+      (author.role === 'technician' || author.role === 'admin')
+    ) {
+      void this.whatsappService.sendMessage(ticket.customer_phone, dto.body);
     }
 
     this.gateway.emitNewComment({

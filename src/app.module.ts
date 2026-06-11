@@ -18,6 +18,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { PublicModule } from './public/public.module';
 import { MacrosModule } from './macros/macros.module';
 import { IncidentsModule } from './incidents/incidents.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 // Entities
 import { Ticket } from './tickets/entities/ticket.entity';
@@ -34,6 +35,7 @@ import { ComplaintCategory } from './categories/entities/complaint-category.enti
 import { CustomerNote } from './public/entities/customer-note.entity';
 import { Macro } from './macros/entities/macro.entity';
 import { Incident } from './incidents/entities/incident.entity';
+import { OrgIntegration } from './integrations/entities/org-integration.entity';
 
 @Module({
   imports: [
@@ -46,7 +48,7 @@ import { Incident } from './incidents/entities/incident.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('database.url'),
-        entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation, ComplaintCategory, CustomerNote, Macro, Incident],
+        entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation, ComplaintCategory, CustomerNote, Macro, Incident, OrgIntegration],
         synchronize: config.get<string>('nodeEnv') !== 'production',
         logging: config.get<string>('nodeEnv') === 'development',
       }),
@@ -68,6 +70,7 @@ import { Incident } from './incidents/entities/incident.entity';
     PublicModule,
     MacrosModule,
     IncidentsModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}

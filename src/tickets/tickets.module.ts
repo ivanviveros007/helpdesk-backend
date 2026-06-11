@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Ticket } from './entities/ticket.entity';
 import { TicketAttachment } from './entities/ticket-attachment.entity';
@@ -13,6 +13,7 @@ import { EmailModule } from '../email/email.module';
 import { UsersModule } from '../users/users.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     UsersModule,
     UploadsModule,
     OrganizationsModule,
+    forwardRef(() => IntegrationsModule),
   ],
   providers: [TicketsService, TicketsGateway, TicketsCron],
   controllers: [TicketsController],
