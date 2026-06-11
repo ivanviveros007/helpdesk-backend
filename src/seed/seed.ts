@@ -20,6 +20,7 @@ import { TechnicianRole } from '../technicians/entities/technician.entity';
 import { DataSource } from 'typeorm';
 import { Organization } from '../organizations/entities/organization.entity';
 import { SuperAdmin } from '../super-admin/entities/super-admin.entity';
+import { CategoriesService } from '../categories/categories.service';
 
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -43,6 +44,11 @@ async function seed() {
   } else {
     console.log('⚠️  Organización ya existe — omitiendo.');
   }
+
+  // ─── Categorías de reclamo (idempotente) ──────────────────────────────────
+  const categoriesService = app.get(CategoriesService);
+  await categoriesService.seedDefaults(org.id);
+  console.log('✅ Categorías de reclamo default verificadas.');
 
   // ─── Niveles ──────────────────────────────────────────────────────────────
   const existingLevels = await levelsService.findAll();

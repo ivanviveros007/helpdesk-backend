@@ -69,6 +69,39 @@ export class PublicService {
     };
   }
 
+  /** Crea un reclamo desde un email entrante. Usa la categoría "other" como fallback. */
+  async createComplaintFromEmail(
+    orgSlug: string,
+    data: { customer_name: string; customer_email: string; description: string },
+  ) {
+    const org = await this.findPortalOrg(orgSlug);
+    const categories = await this.categoriesService.findAll(org.id, true);
+    const fallback =
+      categories.find((c) => c.slug === 'other') ?? categories[0];
+    if (!fallback) {
+      throw new BadRequestException('La organización no tiene categorías configuradas');
+    }
+
+    const { ticket_id, tracking_token } =
+      await this.ticketsService.createPublicComplaint({
+        org_id: org.id,
+        org_slug: org.slug,
+        org_nombre: org.nombre,
+        customer_name: data.customer_name,
+        customer_email: data.customer_email,
+        category_id: fallback.id,
+        category_name: fallback.name,
+        description: data.description,
+        channel: TicketChannel.EMAIL,
+      });
+
+    return {
+      complaint_id: ticket_id,
+      short_id: ticket_id.slice(0, 8).toUpperCase(),
+      tracking_token,
+    };
+  }
+
   /** Estado del reclamo para la página de seguimiento (datos mínimos, sin info interna). */
   async trackComplaint(token: string) {
     const ticket = await this.ticketsService.findByTrackingToken(token);
