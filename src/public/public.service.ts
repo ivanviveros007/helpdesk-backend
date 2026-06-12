@@ -34,7 +34,9 @@ export class PublicService {
       categories: categories.map((c) => ({
         id: c.id,
         name: c.name,
+        name_en: c.name_en ?? null,
         description: c.description,
+        description_en: c.description_en ?? null,
         icon: c.icon,
       })),
     };

@@ -18,6 +18,12 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  private async getPanelLanguage(orgId?: string | null): Promise<string> {
+    if (!orgId) return 'es';
+    const org = await this.orgsService.findById(orgId).catch(() => null);
+    return org?.panel_language ?? 'es';
+  }
+
   async login(dto: LoginDto) {
     const tech = await this.techniciansService.findByEmail(dto.email);
     if (tech) {
@@ -25,10 +31,11 @@ export class AuthService {
       if (!valid) throw new UnauthorizedException('Invalid credentials');
       if (!tech.estado_activo) throw new UnauthorizedException('Account is inactive');
 
+      const language = await this.getPanelLanguage(tech.org_id);
       const payload = { sub: tech.id, email: tech.email, role: tech.role, entity_type: 'technician', org_id: tech.org_id ?? null, nombre: tech.nombre };
       return {
         access_token: this.jwtService.sign(payload),
-        user: { id: tech.id, nombre: tech.nombre, email: tech.email, role: tech.role, entity_type: 'technician', org_id: tech.org_id ?? null, nivel: tech.nivel },
+        user: { id: tech.id, nombre: tech.nombre, email: tech.email, role: tech.role, entity_type: 'technician', org_id: tech.org_id ?? null, nivel: tech.nivel, language },
       };
     }
 
@@ -39,10 +46,11 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
     if (!user.estado_activo) throw new UnauthorizedException('Account is inactive');
 
+    const language = await this.getPanelLanguage(user.org_id);
     const payload = { sub: user.id, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nombre: user.nombre };
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: user.id, nombre: user.nombre, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nivel: null },
+      user: { id: user.id, nombre: user.nombre, email: user.email, role: user.role, entity_type: 'user', org_id: user.org_id ?? null, nivel: null, language },
     };
   }
 

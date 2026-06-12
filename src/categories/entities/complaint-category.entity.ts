@@ -18,11 +18,17 @@ export class ComplaintCategory {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  name_en: string;
+
   @Column()
   slug: string;
 
   @Column({ nullable: true })
   description: string;
+
+  @Column({ nullable: true })
+  description_en: string;
 
   @Column({ nullable: true })
   icon: string; // nombre de ícono Lucide

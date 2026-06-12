@@ -52,13 +52,15 @@ export class CategoriesService {
     await this.repo.save(category);
   }
 
-  /** Crea las 6 categorías default para una organización nueva. Idempotente. */
+  /** Crea o actualiza las categorías default para una organización. Idempotente. */
   async seedDefaults(orgId: string): Promise<void> {
-    const count = await this.repo.countBy({ org_id: orgId });
-    if (count > 0) return;
-    const categories = DEFAULT_CATEGORIES.map((c) =>
-      this.repo.create({ ...c, org_id: orgId }),
-    );
-    await this.repo.save(categories);
+    for (const def of DEFAULT_CATEGORIES) {
+      const existing = await this.repo.findOneBy({ org_id: orgId, slug: def.slug });
+      if (existing) {
+        await this.repo.update(existing.id, { name_en: def.name_en, description_en: def.description_en });
+      } else {
+        await this.repo.save(this.repo.create({ ...def, org_id: orgId }));
+      }
+    }
   }
 }

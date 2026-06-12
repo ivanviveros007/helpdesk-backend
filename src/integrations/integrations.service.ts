@@ -62,13 +62,13 @@ export class IntegrationsService {
     await this.repo.remove(integration);
   }
 
-  /** Busca la org dueña de un número de WhatsApp (webhook inbound de Twilio). */
-  async findOrgByWhatsappNumber(phoneNumber: string): Promise<string | null> {
+  /** Busca la org dueña de un phone_number_id de Meta WhatsApp Cloud API. */
+  async findOrgByWhatsappNumber(phoneNumberId: string): Promise<string | null> {
     const integration = await this.repo
       .createQueryBuilder('i')
       .where('i.provider = :p', { p: 'whatsapp' })
       .andWhere('i.is_active = true')
-      .andWhere("i.config->>'phone_number' = :phone", { phone: phoneNumber })
+      .andWhere("i.config->>'phone_number_id' = :id", { id: phoneNumberId })
       .getOne();
     return integration?.org_id ?? null;
   }

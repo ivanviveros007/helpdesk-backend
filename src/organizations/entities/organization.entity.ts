@@ -42,6 +42,9 @@ export class Organization {
   @Column({ default: 'es' })
   portal_language: string; // 'es' | 'en' — idioma de todo lo que ve el cliente final
 
+  @Column({ default: 'es' })
+  panel_language: string; // 'es' | 'en' — idioma del panel interno de agentes/admin
+
   @CreateDateColumn()
   created_at: Date;
 }

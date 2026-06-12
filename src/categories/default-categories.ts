@@ -1,8 +1,10 @@
 export const DEFAULT_CATEGORIES = [
   {
     name: 'Problema de entrega',
+    name_en: 'Delivery issue',
     slug: 'delivery',
     description: 'No llegó, llegó tarde o a una dirección incorrecta',
+    description_en: 'Not delivered, late, or wrong address',
     icon: 'Truck',
     color: '#2F6FED',
     default_priority: 1,
@@ -10,8 +12,10 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     name: 'Producto defectuoso',
+    name_en: 'Defective product',
     slug: 'defective',
     description: 'Defectuoso, incompleto o producto equivocado',
+    description_en: 'Defective, incomplete, or wrong item',
     icon: 'PackageX',
     color: '#DC2626',
     default_priority: 1,
@@ -19,8 +23,10 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     name: 'Cobro incorrecto',
+    name_en: 'Billing issue',
     slug: 'billing',
     description: 'Cobro duplicado, monto incorrecto o cargo no reconocido',
+    description_en: 'Duplicate charge, wrong amount, or unrecognized charge',
     icon: 'CreditCard',
     color: '#D97706',
     default_priority: 1,
@@ -28,8 +34,10 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     name: 'Solicitud de devolución',
+    name_en: 'Return request',
     slug: 'return',
     description: 'Arrepentimiento, cambio o no cumple expectativas',
+    description_en: "Changed mind, exchange, or doesn't meet expectations",
     icon: 'RotateCcw',
     color: '#7C3AED',
     default_priority: 2,
@@ -37,8 +45,10 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     name: 'Garantía',
+    name_en: 'Warranty claim',
     slug: 'warranty',
     description: 'Solicitud de garantía o reparación',
+    description_en: 'Warranty or repair request',
     icon: 'Shield',
     color: '#059669',
     default_priority: 2,
@@ -46,8 +56,10 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     name: 'Otro',
+    name_en: 'Other',
     slug: 'other',
     description: 'Cualquier otra consulta o reclamo',
+    description_en: 'Any other question or complaint',
     icon: 'HelpCircle',
     color: '#64748B',
     default_priority: 3,

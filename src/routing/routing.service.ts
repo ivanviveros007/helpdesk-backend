@@ -35,6 +35,7 @@ export class RoutingService {
       org_context: {
         company_type: org?.company_type ?? null,
         ai_custom_instructions: org?.ai_custom_instructions ?? null,
+        language: org?.panel_language ?? 'es',
       },
       niveles: niveles.map((l) => ({
         id: l.id,

@@ -61,14 +61,76 @@ async function seed() {
         company_type: 'ecommerce',
         portal_primary_color: '#2563eb',
         portal_language: 'en',
+        panel_language: 'en',
         portal_welcome_message:
           "Tell us what happened with your order and we'll get back to you shortly.",
         portal_order_label: 'Order number',
       }),
     );
     console.log('✅ Organización demo creada: Nebroo');
+  } else if (nebroo.panel_language !== 'en') {
+    await orgRepo.update(nebroo.id, { panel_language: 'en' });
   }
-  await categoriesService.seedDefaults(nebroo.id);
+  // Nebroo: categorías específicas para audífonos OTC
+  const nebrooCategories = [
+    { name: 'Order not received', slug: 'delivery', description: 'Package not arrived, delayed, or wrong address', icon: 'Truck', color: '#2F6FED', default_priority: 1, sort_order: 0 },
+    { name: 'Defective / not working', slug: 'defective', description: 'Hearing aid not turning on, poor sound, or broken', icon: 'PackageX', color: '#DC2626', default_priority: 1, sort_order: 1 },
+    { name: 'Return request', slug: 'return', description: '120-day money-back guarantee — return or exchange', icon: 'RotateCcw', color: '#7C3AED', default_priority: 2, sort_order: 2 },
+    { name: 'Warranty claim', slug: 'warranty', description: '1-year warranty — repair or replacement', icon: 'Shield', color: '#059669', default_priority: 2, sort_order: 3 },
+    { name: 'Wrong item / accessories', slug: 'wrong-item', description: 'Received wrong model, color, or accessories', icon: 'PackageSearch', color: '#D97706', default_priority: 1, sort_order: 4 },
+    { name: 'Billing question', slug: 'billing', description: 'Duplicate charge, wrong amount, or promo code issue', icon: 'CreditCard', color: '#0891B2', default_priority: 2, sort_order: 5 },
+    { name: 'Setup & how to use', slug: 'setup', description: 'Pairing, modes, volume, app — getting started', icon: 'HelpCircle', color: '#64748B', default_priority: 3, sort_order: 6 },
+  ];
+  for (const def of nebrooCategories) {
+    const existing = await dataSource.getRepository('complaint_categories').findOneBy({ org_id: nebroo.id, slug: def.slug });
+    if (!existing) {
+      await dataSource.getRepository('complaint_categories').save({ ...def, org_id: nebroo.id, is_active: true });
+    }
+  }
+  console.log('✅ Categorías Nebroo verificadas.');
+
+  // Nebroo: agentes de Customer Support
+  const technicianRepo = dataSource.getRepository('tecnicos');
+  const nebrooAgentEmails = [
+    'shaun@nebroo.com', 'shiela@nebroo.com', 'mark@nebroo.com',
+    'travis@nebroo.com', 'tweetie@nebroo.com', 'vibian@nebroo.com',
+  ];
+  const anyNebrooAgent = await technicianRepo.findOneBy({ email: 'shaun@nebroo.com' });
+  if (!anyNebrooAgent) {
+    const nebrooNivel = (await levelsService.findAll())[0] ?? null;
+    const nebrooAgents = [
+      { nombre: 'Shaun Kane Deguit',  email: 'shaun@nebroo.com',   skills: ['returns', 'warranty', 'billing'] },
+      { nombre: 'Shiela Mae Turno',   email: 'shiela@nebroo.com',  skills: ['delivery', 'order-tracking'] },
+      { nombre: 'Mark Lester Lopez',  email: 'mark@nebroo.com',    skills: ['delivery', 'wrong-item'] },
+      { nombre: 'Travis',             email: 'travis@nebroo.com',  skills: ['setup', 'how-to-use'] },
+      { nombre: 'Tweetie Rosete',     email: 'tweetie@nebroo.com', skills: ['returns', 'defective'] },
+      { nombre: 'Vibian Chemutai',    email: 'vibian@nebroo.com',  skills: ['billing', 'email-support'] },
+    ];
+    for (const agent of nebrooAgents) {
+      const created = await techniciansService.create({
+        nombre: agent.nombre,
+        email: agent.email,
+        password: 'Nebroo1234!',
+        nivel_id: nebrooNivel?.id,
+        estado_activo: true,
+        skills: agent.skills,
+      });
+      await technicianRepo.update(created.id, { org_id: nebroo.id, role: TechnicianRole.TECHNICIAN });
+    }
+    // Admin de Nebroo
+    const nebrooAdmin = await techniciansService.create({
+      nombre: 'Shyra (QA Lead)',
+      email: 'shyra@nebroo.com',
+      password: 'Nebroo1234!',
+      nivel_id: nebrooNivel?.id,
+      estado_activo: true,
+      skills: ['quality', 'training', 'all-categories'],
+    });
+    await technicianRepo.update(nebrooAdmin.id, { org_id: nebroo.id, role: TechnicianRole.ADMIN });
+    console.log('✅ 7 agentes Nebroo creados (password: Nebroo1234!)');
+  } else {
+    console.log('⚠️  Agentes Nebroo ya existen — omitiendo.');
+  }
 
   // ─── Niveles ──────────────────────────────────────────────────────────────
   const existingLevels = await levelsService.findAll();
@@ -202,6 +264,14 @@ async function seed() {
   console.log('');
   console.log('  🔑 Super Admin');
   console.log('     superadmin@helpdesk.app / SuperAdmin1234!');
+  console.log('');
+  console.log('  🎧 Nebroo (admin: shyra@nebroo.com / Nebroo1234!)');
+  console.log('     shaun@nebroo.com   — returns, warranty, billing');
+  console.log('     shiela@nebroo.com  — delivery, order tracking');
+  console.log('     mark@nebroo.com    — delivery, wrong item');
+  console.log('     travis@nebroo.com  — setup, how to use');
+  console.log('     tweetie@nebroo.com — returns, defective');
+  console.log('     vibian@nebroo.com  — billing, email support');
   console.log('─────────────────────────────────────────\n');
 
   await app.close();
