@@ -630,6 +630,57 @@ export class TicketsService {
     };
   }
 
+  /** Reasigna el reclamo a otro agente. Permitido para el agente asignado o un admin de la org. */
+  async reassign(id: string, newTechId: string, actor: { id: string; role: string }): Promise<Ticket> {
+    const ticket = await this.findOne(id);
+
+    const isAssignee = ticket.tecnico_asignado?.id === actor.id;
+    if (actor.role !== 'admin' && !isAssignee) {
+      throw new ForbiddenException('Solo el agente asignado o un admin pueden reasignar');
+    }
+    if ([TicketStatus.RESUELTO, TicketStatus.CANCELADO].includes(ticket.estado)) {
+      throw new BadRequestException('El ticket ya está cerrado');
+    }
+    if (ticket.tecnico_asignado?.id === newTechId) {
+      throw new BadRequestException('El reclamo ya está asignado a ese agente');
+    }
+
+    const newTech = await this.techniciansService.findOne(newTechId, ticket.org_id ?? undefined);
+    if (!newTech.estado_activo) {
+      throw new BadRequestException('El agente destino está inactivo');
+    }
+
+    const previousTechId = ticket.tecnico_asignado?.id;
+    ticket.tecnico_asignado = newTech;
+    ticket.nivel_asignado = newTech.nivel?.numero_nivel ?? ticket.nivel_asignado;
+    if (ticket.estado === TicketStatus.EN_PROGRESO) ticket.estado = TicketStatus.ASIGNADO;
+    ticket.last_activity_at = new Date();
+    const saved = await this.repo.save(ticket);
+
+    // Ajustar cargas
+    if (previousTechId) await this.techniciansService.decrementCarga(previousTechId);
+    await this.techniciansService.incrementCarga(newTech.id);
+
+    this.emitStatusChange(saved);
+    this.logger.log(`Ticket ${id} reassigned ${previousTechId ?? 'none'} → ${newTech.id} by ${actor.id}`);
+    return saved;
+  }
+
+  /** Agentes activos de la org del ticket, para el selector de reasignación. */
+  async getReassignOptions(ticketId: string) {
+    const ticket = await this.findOne(ticketId);
+    const techs = await this.techniciansService.findAll(ticket.org_id ?? undefined);
+    return techs
+      .filter((t) => t.estado_activo)
+      .map((t) => ({
+        id: t.id,
+        nombre: t.nombre,
+        carga_actual: t.carga_actual,
+        nivel: t.nivel?.numero_nivel ?? null,
+        skills: t.skills?.map((s) => s.nombre_tecnologia) ?? [],
+      }));
+  }
+
   private emitStatusChange(ticket: Ticket): void {
     this.gateway.emitTicketUpdated({
       ticketId: ticket.id,

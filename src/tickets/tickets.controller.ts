@@ -103,6 +103,26 @@ export class TicketsController {
     return this.service.updateStatus(id, dto, req.user.id);
   }
 
+  @ApiOperation({ summary: 'Reassign ticket to another agent (assignee or admin)' })
+  @Patch(':id/reassign')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('technician', 'admin')
+  reassign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { tecnico_id: string },
+    @Request() req,
+  ) {
+    return this.service.reassign(id, body.tecnico_id, { id: req.user.id, role: req.user.role });
+  }
+
+  @ApiOperation({ summary: 'Active agents available for reassignment' })
+  @Get(':id/reassign-options')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('technician', 'admin')
+  reassignOptions(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getReassignOptions(id);
+  }
+
   @ApiOperation({ summary: 'User acknowledges they completed the requested action' })
   @Patch(':id/user-response')
   @UseGuards(JwtAuthGuard, RolesGuard)

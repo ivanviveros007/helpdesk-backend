@@ -81,12 +81,18 @@ async function seed() {
     { name: 'Billing question', slug: 'billing', description: 'Duplicate charge, wrong amount, or promo code issue', icon: 'CreditCard', color: '#0891B2', default_priority: 2, sort_order: 5 },
     { name: 'Setup & how to use', slug: 'setup', description: 'Pairing, modes, volume, app — getting started', icon: 'HelpCircle', color: '#64748B', default_priority: 3, sort_order: 6 },
   ];
+  const catRepo = dataSource.getRepository('complaint_categories');
   for (const def of nebrooCategories) {
-    const existing = await dataSource.getRepository('complaint_categories').findOneBy({ org_id: nebroo.id, slug: def.slug });
-    if (!existing) {
-      await dataSource.getRepository('complaint_categories').save({ ...def, org_id: nebroo.id, is_active: true });
+    const existing: any = await catRepo.findOneBy({ org_id: nebroo.id, slug: def.slug });
+    if (existing) {
+      // La org Nebroo es EN: pisa los textos en español de los defaults genéricos
+      await catRepo.update(existing.id, { ...def });
+    } else {
+      await catRepo.save({ ...def, org_id: nebroo.id, is_active: true });
     }
   }
+  // Desactivar la categoría genérica "other" en español si quedó duplicada con otro slug
+  await catRepo.update({ org_id: nebroo.id, slug: 'other' }, { name: 'Other', description: 'Any other question or complaint' });
   console.log('✅ Categorías Nebroo verificadas.');
 
   // Nebroo: agentes de Customer Support
