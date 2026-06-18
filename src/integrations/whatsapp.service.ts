@@ -34,7 +34,7 @@ export class WhatsappService {
         url,
         {
           messaging_product: 'whatsapp',
-          to: toPhone.replace(/^\+/, ''),
+          to: toPhone.replace(/^\+/, '').replace(/^549/, '54'),
           type: 'text',
           text: { body },
         },
