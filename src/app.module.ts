@@ -49,7 +49,7 @@ import { OrgIntegration } from './integrations/entities/org-integration.entity';
         type: 'postgres',
         url: config.get<string>('database.url'),
         entities: [Ticket, TicketAttachment, TicketComment, Level, Technician, Skill, Organization, User, SuperAdmin, Invitation, ComplaintCategory, CustomerNote, Macro, Incident, OrgIntegration],
-        synchronize: config.get<string>('nodeEnv') !== 'production',
+        synchronize: true,
         logging: config.get<string>('nodeEnv') === 'development',
       }),
       inject: [ConfigService],
