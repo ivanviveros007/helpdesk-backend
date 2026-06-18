@@ -126,10 +126,12 @@ export class TicketsService {
         params.org_language === 'en'
           ? `✅ We received your request #${shortId}. We'll keep you posted right here. — ${params.org_nombre}`
           : `✅ Recibimos tu reclamo #${shortId}. Te vamos respondiendo por acá. — ${params.org_nombre}`;
-      this.logger.log(`Sending WhatsApp confirmation to ${params.customer_phone}`);
-      this.whatsappService.sendMessage(params.customer_phone, confirmMsg).catch((err) =>
-        this.logger.error(`WhatsApp confirmation error: ${err.message}`),
-      );
+      this.logger.log(`Sending WhatsApp confirmation to ${params.customer_phone}, service available: ${!!this.whatsappService}`);
+      if (this.whatsappService) {
+        this.whatsappService.sendMessage(params.customer_phone, confirmMsg).catch((err) =>
+          this.logger.error(`WhatsApp confirmation error: ${err.message}`),
+        );
+      }
     }
 
     this.integrationsService.notify(params.org_id, {
