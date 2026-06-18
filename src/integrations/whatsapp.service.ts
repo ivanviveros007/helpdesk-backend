@@ -14,8 +14,8 @@ export class WhatsappService {
   private readonly phoneNumberId?: string;
 
   constructor(config: ConfigService) {
-    this.accessToken = config.get<string>('WHATSAPP_ACCESS_TOKEN');
-    this.phoneNumberId = config.get<string>('WHATSAPP_PHONE_NUMBER_ID');
+    this.accessToken = config.get<string>('whatsapp.accessToken');
+    this.phoneNumberId = config.get<string>('whatsapp.phoneNumberId');
   }
 
   get isConfigured(): boolean {

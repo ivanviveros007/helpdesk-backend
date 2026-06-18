@@ -20,4 +20,9 @@ export default () => ({
   resend: {
     apiKey: process.env.RESEND_API_KEY ?? '',
   },
+  whatsapp: {
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? '',
+  },
 });

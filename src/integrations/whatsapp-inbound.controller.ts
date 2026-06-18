@@ -32,7 +32,7 @@ export class WhatsappInboundController {
     private readonly categoriesService: CategoriesService,
     config: ConfigService,
   ) {
-    this.verifyToken = config.get<string>('WHATSAPP_VERIFY_TOKEN') ?? 'helpdesk-verify';
+    this.verifyToken = config.get<string>('whatsapp.verifyToken') ?? 'helpdesk-verify';
   }
 
   /** Meta llama este endpoint al guardar el webhook en Developer Console */
